@@ -298,7 +298,7 @@ const mover = (ym, n) => { let [y, m] = ym.split('-').map(Number); m += n; while
 const nombreMes = ym => { const [y, m] = ym.split('-').map(Number); return MESES_L[m - 1][0].toUpperCase() + MESES_L[m - 1].slice(1) + ' ' + y; };
 const eur = (n, dec = 2) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec, useGrouping: true });
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const S = { gastos: [], pend: [], cfg: store.get('cfg', null), demo: false, tab: 'apuntar', mes: mesHoy(), online: true, ultimaSync: null, nuevo: null };
+const S = { error: store.get('error', null), gastos: [], pend: [], cfg: store.get('cfg', null), demo: false, tab: 'apuntar', mes: mesHoy(), online: true, ultimaSync: null, nuevo: null };
 const deFila = r => ({ id: String(r[0]), fecha: String(r[1]).slice(0, 10), categoria: String(r[2]).toUpperCase(), importe: Math.round(Number(r[3]) * 100) / 100, nota: String(r[4] || '') });
 
 /* importes escritos de cualquier manera: "12,5", "12.50 €", "1.234,56", "12'5", "-3" */
@@ -322,16 +322,18 @@ function leerConfigDeEnlace() {
   const h = new URLSearchParams(location.hash.slice(1)), q = new URLSearchParams(location.search);
   const u = h.get('u') || q.get('u'), k = h.get('k') || q.get('k');
   if (u && k) {
-    S.cfg = { url: u, k: k }; store.set('cfg', S.cfg);
-    if (location.hash) history.replaceState(null, '', location.pathname + '?u=' + encodeURIComponent(u) + '&k=' + encodeURIComponent(k));
+    S.cfg = { url: u.trim().replace(/[?#].*$/, ''), k: k.trim() }; store.set('cfg', S.cfg);
+    if (location.hash) history.replaceState(null, '', location.pathname + '?u=' + encodeURIComponent(S.cfg.url) + '&k=' + encodeURIComponent(S.cfg.k));
   } else if (S.cfg && S.cfg.url && S.cfg.k && !q.get('u')) {
     history.replaceState(null, '', location.pathname + '?u=' + encodeURIComponent(S.cfg.url) + '&k=' + encodeURIComponent(S.cfg.k));
   }
 }
 async function api(method, body) {
+  if (!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec/.test(S.cfg.url)) throw new Error('DIRECCION');
   const u = S.cfg.url + (method === 'GET' ? (S.cfg.url.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(S.cfg.k) : '');
   const r = await fetch(u, method === 'GET' ? { cache: 'no-store' } : { method: 'POST', body: JSON.stringify(Object.assign({ k: S.cfg.k }, body)) });
-  const j = await r.json();
+  const txt = await r.text();
+  let j; try { j = JSON.parse(txt); } catch (e) { throw new Error('NOJSON'); }
   if (!j.ok) throw new Error(j.error || 'Error');
   return j;
 }
@@ -344,15 +346,29 @@ async function sincronizar(mostrar) {
     const j = await api('GET');
     S.gastos = j.gastos.map(deFila);
     store.set('cache', { gastos: j.gastos, hora: j.hora });
-    S.ultimaSync = new Date(); S.online = true;
+    S.ultimaSync = new Date(); S.online = true; S.error = null; store.set('error', null);
     if (mostrar) toast('Datos al día');
     render();
   } catch (e) {
     S.online = false;
+    S.error = explicarError(e); store.set('error', S.error);
+    if (S.tab === 'ajustes') vAjustes();
     if (String(e.message).includes('CLAVE')) toast('La clave de conexión no es correcta. Revísala en Ajustes.');
     else if (mostrar) toast('Sin conexión. Lo apuntado se enviará después.');
   }
   sincronizando = false; pintarEstado();
+}
+function explicarError(e) {
+  const m = String(e && e.message || e);
+  const hora = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  if (m === 'DIRECCION') return [hora, 'La dirección del script no es la buena: tiene que empezar por https://script.google.com/macros/s/ y terminar en /exec (sin ?k= ni nada detrás).'];
+  if (m === 'NOJSON') return [hora, 'Google ha devuelto una página en vez de los datos. Revisa en la implementación que «Quién tiene acceso» sea «Cualquier usuario».'];
+  if (m.includes('CLAVE')) return [hora, 'La clave no coincide con la del script. Ejecuta de nuevo «configurar» en Apps Script y copia la clave que salga.'];
+  if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return [hora, navigator.onLine
+    ? 'Google no deja leer los datos desde la app. Casi siempre es porque en la implementación «Quién tiene acceso» está en «Cualquier usuario con una cuenta de Google»: cámbialo a «Cualquier usuario» (Gestionar implementaciones → lápiz → Versión: nueva versión → Implementar).'
+    : 'Este aparato no tiene internet ahora mismo.'];
+  if (/null|undefined|getRange|getLastRow/.test(m)) return [hora, 'El script no encuentra la pestaña «Gastos» en la hoja. Comprueba que se llame exactamente así. (' + m + ')'];
+  return [hora, m];
 }
 function aplicarLocal(op) {
   if (op.accion === 'crear') S.gastos.push(Object.assign({ _local: true }, op.gasto));
@@ -709,20 +725,21 @@ async function exportarExcel(y) {
 function vAjustes() {
   $('#app').innerHTML = `<div class="view" style="max-width:680px">
     <h2>Ajustes</h2>
-    <section class="panel"><h3>Tamaño de letra</h3>
-      <div class="seg" role="group" aria-label="Tamaño de letra">${[['normal', 'Normal'], ['grande', 'Grande'], ['xgrande', 'Muy grande']].map(([k, t]) => `<button type="button" class="${store.get('letra', 'normal') === k ? 'on' : ''}" data-letra="${k}">${t}</button>`).join('')}</div>
-      <p class="small muted" style="margin:0">Se guarda en este aparato.</p>
-    </section>
     <section class="panel"><h3>Conexión con Google</h3>
+      ${S.error ? `<p style="margin:0;padding:10px 12px;border-radius:10px;background:var(--stamp-soft);color:var(--ink)"><b style="color:var(--stamp)">No se ha podido conectar (${esc(S.error[0])})</b><br>${esc(S.error[1])}</p>` : (S.ultimaSync ? '<p style="margin:0"><span class="sello">Conectado</span></p>' : '')}
       <p class="small muted" style="margin:0">Se configura sola al abrir el enlace de instalación. Solo hace falta tocar esto si cambia.</p>
       <div class="field"><label for="aUrl">Dirección del script</label><input type="url" id="aUrl" value="${esc(S.cfg?.url || '')}" placeholder="https://script.google.com/macros/s/…/exec"></div>
       <div class="field"><label for="aK">Clave</label><input type="text" id="aK" value="${esc(S.cfg?.k || '')}" autocomplete="off"></div>
       <div class="seg"><button type="button" class="btn go" id="aSave">Guardar y actualizar</button><button type="button" class="btn" id="aSync">Actualizar ahora</button></div>
       <p class="small muted" style="margin:0">${S.ultimaSync ? 'Última actualización: ' + S.ultimaSync.toLocaleString('es-ES') : ''}${S.pend.length ? ' · ' + S.pend.length + ' cambios por enviar' : ''}</p>
     </section>
+    <section class="panel"><h3>Tamaño de letra</h3>
+      <div class="seg" role="group" aria-label="Tamaño de letra">${[['normal', 'Normal'], ['grande', 'Grande'], ['xgrande', 'Muy grande']].map(([k, t]) => `<button type="button" class="${store.get('letra', 'normal') === k ? 'on' : ''}" data-letra="${k}">${t}</button>`).join('')}</div>
+      <p class="small muted" style="margin:0">Se guarda en este aparato.</p>
+    </section>
   </div>`;
   $$('[data-letra]').forEach(b => b.onclick = () => { store.set('letra', b.dataset.letra); aplicarLetra(); vAjustes(); });
-  $('#aSave').onclick = () => { S.cfg = { url: $('#aUrl').value.trim(), k: $('#aK').value.trim() }; store.set('cfg', S.cfg); leerConfigDeEnlace(); sincronizar(true); };
+  $('#aSave').onclick = () => { S.cfg = { url: $('#aUrl').value.trim().replace(/[?#].*$/, ''), k: $('#aK').value.trim() }; store.set('cfg', S.cfg); leerConfigDeEnlace(); sincronizar(true); };
   $('#aSync').onclick = () => sincronizar(true);
 }
 
@@ -730,7 +747,7 @@ function vAjustes() {
 $$('nav.tabs button').forEach(b => b.onclick = () => irA(b.dataset.tab));
 $('#mPrev').onclick = () => { S.mes = mover(S.mes, -1); render(); };
 $('#mNext').onclick = () => { if (S.mes < mesHoy()) { S.mes = mover(S.mes, 1); render(); } };
-$('#syncPill').onclick = () => S.demo ? toast('Versión de prueba: no se conecta a Google.') : (S.cfg ? sincronizar(true) : irA('ajustes'));
+$('#syncPill').onclick = () => S.demo ? toast('Versión de prueba: no se conecta a Google.') : (S.cfg && !S.error ? sincronizar(true) : irA('ajustes'));
 window.addEventListener('online', () => sincronizar());
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sincronizar(); });
 function aplicarLetra() { const l = store.get('letra', 'normal'); document.documentElement.classList.toggle('grande', l === 'grande'); document.documentElement.classList.toggle('xgrande', l === 'xgrande'); }
