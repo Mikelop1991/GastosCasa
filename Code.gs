@@ -4,19 +4,23 @@
  * La hoja debe tener la pestaña "Gastos" tal como viene en el archivo.
  *
  * Primera vez:
- *   1. Ejecuta `configurar` (botón ▶ arriba) y copia la clave que sale en el registro.
+ *   1. Escribe tu clave en CLAVE_APP (aquí abajo), entre las comillas. Solo letras y números.
  *   2. Implementar > Nueva implementación > Aplicación web
  *      (Ejecutar como: yo · Quién tiene acceso: cualquier usuario). Copia la URL que acaba en /exec.
  *   3. Opcional: ejecuta una vez `activarCopias` para guardar una copia de la hoja cada lunes.
  */
+
+// ⬇⬇ ESCRIBE AQUÍ LA CLAVE DE LA APP (la misma que pondrás en el enlace &k=…) ⬇⬇
+const CLAVE_APP = '';
 
 const HOJA_GASTOS = 'Gastos';
 const CAMPOS = ['id', 'fecha', 'categoria', 'importe', 'nota', 'creado', 'modificado'];
 const CATEGORIAS = ['AGUA Y RESIDUOS', 'ARSENAL', 'BAJERA', 'COMUNIDAD', 'IBERDROLA', 'PISCINA',
   'SEGUROS CASA', 'SEGUROS COCHE', 'VARIOS INTERESES', 'VODAFONE', 'COMPRA', 'OTROS GASTOS'];
 
-/** Genera la clave secreta de la app (solo hace falta una vez). */
+/** Muestra la clave que está usando el script (o genera una si no hay ninguna). */
 function configurar() {
+  if (CLAVE_APP) { Logger.log('Clave de la app: ' + CLAVE_APP); return CLAVE_APP; }
   const props = PropertiesService.getScriptProperties();
   let clave = props.getProperty('CLAVE');
   if (!clave) {
@@ -29,6 +33,8 @@ function configurar() {
 
 function doGet(e) {
   return responder_(() => {
+    // sin clave: dice qué script es, para comprobar que la URL apunta al sitio bueno
+    if (!e.parameter.k) return { ok: false, error: 'FALTA_CLAVE', app: 'Gastos Casa', hoja: SpreadsheetApp.getActive().getName(), claveConfigurada: !!claveActual_() };
     comprobarClave_(e.parameter.k);
     return { ok: true, gastos: leerGastos_(), hora: new Date().toISOString() };
   });
@@ -123,9 +129,12 @@ function buscarFila_(hoja, id) {
   return -1;
 }
 
+function claveActual_() {
+  return String(CLAVE_APP || PropertiesService.getScriptProperties().getProperty('CLAVE') || '').trim();
+}
 function comprobarClave_(k) {
-  const clave = PropertiesService.getScriptProperties().getProperty('CLAVE');
-  if (!clave || k !== clave) throw new Error('CLAVE');
+  const clave = claveActual_();
+  if (!clave || String(k || '').trim() !== clave) throw new Error('CLAVE');
 }
 
 function responder_(fn) {
