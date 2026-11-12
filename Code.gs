@@ -45,10 +45,14 @@ function doPost(e) {
     const p = JSON.parse(e.postData.contents);
     comprobarClave_(p.k);
     const lock = LockService.getScriptLock();
-    lock.waitLock(20000);
+    if (!lock.tryLock(20000)) throw new Error('OCUPADO');
     try {
-      const hechos = [];
-      (p.ops || [p]).forEach(op => hechos.push(aplicar_(op)));
+      // cada apunte por separado: si uno falla, los demás se guardan igual y la app sabe cuál no entró
+      const hechos = (p.ops || [p]).map(op => {
+        try { return Object.assign({ ok: true }, aplicar_(op)); }
+        catch (err) { return { ok: false, accion: op && op.accion, error: String(err.message || err) }; }
+      });
+      SpreadsheetApp.flush();
       return { ok: true, hechos: hechos };
     } finally {
       lock.releaseLock();
