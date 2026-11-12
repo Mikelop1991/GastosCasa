@@ -134,14 +134,16 @@ main { max-width: 1040px; margin: 0 auto; padding: 18px 16px 30px; }
 .libreta::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
   background: repeating-linear-gradient(180deg, var(--rule) 0 3px, transparent 3px 9px); }
 .lib-head { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px 8px 20px; border-bottom: 2px solid var(--ink); gap: 8px; }
-.lib-cols { display: grid; grid-template-columns: 4.2em 1fr auto; gap: 8px; padding: 4px 14px 4px 20px; font-size: .74rem; color: var(--ink-2); border-bottom: 1px solid var(--rule); }
-.mov { display: grid; grid-template-columns: 4.2em 1fr auto; gap: 8px; align-items: baseline; width: 100%; text-align: left; border: 0; background: transparent;
+.lib-cols { display: grid; grid-template-columns: 4.2em 1fr auto 1.6em; gap: 8px; padding: 4px 14px 4px 20px; font-size: .74rem; color: var(--ink-2); border-bottom: 1px solid var(--rule); }
+.mov { display: grid; grid-template-columns: 4.2em 1fr auto 1.6em; gap: 8px; align-items: baseline; width: 100%; text-align: left; border: 0; background: transparent;
   padding: 9px 14px 9px 20px; border-bottom: 1px solid var(--rule); font-family: var(--f-print); font-size: .98rem; min-height: 48px; }
 .mov:hover { background: var(--note-soft); }
 .mov .d { color: var(--ink-2); }
 .mov .c { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .mov .c small { display: block; font-size: .8rem; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mov .i { font-weight: 700; text-align: right; white-space: nowrap; }
+.mov .lapiz { color: var(--note); justify-self: end; align-self: center; width: 20px; height: 20px; }
+.lib-hint { padding: 8px 14px 8px 20px; font-size: .84rem; color: var(--ink-2); border-bottom: 1px solid var(--rule); background: var(--paper); }
 .mov.pend .i::after { content: " ·"; color: var(--gold); }
 .lib-foot { display: grid; grid-template-columns: 1fr auto; padding: 12px 14px 14px 20px; font-family: var(--f-print); font-weight: 700; font-size: 1.05rem; border-top: 2px solid var(--ink); }
 .vacio { padding: 26px 20px; text-align: center; color: var(--ink-2); }
@@ -353,7 +355,16 @@ async function sincronizar(mostrar) {
   if (S.demo || !S.cfg || sincronizando) { pintarEstado(); return; }
   sincronizando = true; pintarEstado('sync');
   try {
-    if (S.pend.length) { await api('POST', { ops: S.pend }); S.pend = []; store.set('pend', S.pend); }
+    if (S.pend.length) {
+      try { await api('POST', { ops: S.pend }); }
+      catch (e) {
+        const m = String(e.message);
+        if (/CLAVE|DIRECCION|NOJSON|fetch|network|Load failed/i.test(m)) throw e;
+        // Google ha rechazado el cambio (p. ej. ese apunte ya no existe): se descarta para no bloquear los siguientes
+        toast('Google no ha aceptado el último cambio: ' + m);
+      }
+      S.pend = []; store.set('pend', S.pend);
+    }
     const j = await api('GET');
     S.gastos = j.gastos.map(deFila);
     store.set('cache', { gastos: j.gastos, hora: j.hora });
@@ -481,11 +492,11 @@ function htmlLibreta(ym, max) {
   const filas = vis.map(g => `<button type="button" class="mov ${g._local && S.pend.length ? 'pend' : ''} ${g.id === S.nuevo ? 'nuevo' : ''}" data-id="${esc(g.id)}">
       <span class="d num">${/^X/.test(g.id) ? MESES_C[+g.fecha.slice(5, 7) - 1] : g.fecha.slice(8, 10) + ' ' + MESES_C[+g.fecha.slice(5, 7) - 1]}</span>
       <span class="c">${esc(CAT[g.categoria]?.n || g.categoria)}${g.nota ? `<small>${esc(g.nota)}</small>` : ''}</span>
-      <span class="i num">${eur(g.importe)}</span></button>`).join('');
+      <span class="i num">${eur(g.importe)}</span><svg class="lapiz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg></button>`).join('');
   return `<section class="libreta" aria-label="Gastos de ${nombreMes(ym)}">
     <div class="lib-head"><h3>Libreta de ${MESES_L[+ym.slice(5) - 1]}</h3><span class="small muted">${arr.length} ${arr.length === 1 ? 'apunte' : 'apuntes'}</span></div>
-    ${arr.length ? `<div class="lib-cols"><span>Fecha</span><span>Concepto</span><span>Euros</span></div>${filas}` : `<div class="vacio">Todavía no hay nada apuntado en ${MESES_L[+ym.slice(5) - 1]}.</div>`}
-    ${max && arr.length > max ? `<button type="button" class="mov" id="verTodo" style="font-family:var(--f-ui);color:var(--note);font-weight:700;display:block">Ver los ${arr.length} apuntes</button>` : ''}
+    ${arr.length ? `<div class="lib-hint">Toca un apunte para corregirlo o borrarlo.</div><div class="lib-cols"><span>Fecha</span><span>Concepto</span><span>Euros</span><span></span></div>${filas}` : `<div class="vacio">Todavía no hay nada apuntado en ${MESES_L[+ym.slice(5) - 1]}.</div>`}
+    ${max && arr.length > max ? `<button type="button" class="mov" id="verTodo" style="font-family:var(--f-ui);color:var(--note);font-weight:700;display:block;grid-template-columns:1fr">Ver los ${arr.length} apuntes</button>` : ''}
     <div class="lib-foot"><span>Total</span><span class="num">${eur(suma(arr))} €</span></div>
   </section>`;
 }
@@ -640,7 +651,9 @@ function abrirHoja(o) {
     const del = sh.querySelector('#fDel');
     if (del) del.onclick = () => {
       if (del.dataset.seguro) { encolar({ accion: 'borrar', id: ed.id }); cerrarHoja(); toast('Apunte borrado'); render(); return; }
-      del.dataset.seguro = '1'; del.textContent = 'Toca otra vez para borrar';
+      del.dataset.seguro = '1'; del.textContent = '¿Seguro? Toca otra vez para borrarlo';
+      del.style.background = 'var(--stamp)'; del.style.color = '#fff';
+      setTimeout(() => { if (del.isConnected) { delete del.dataset.seguro; del.textContent = 'Borrar este apunte'; del.style.background = ''; del.style.color = ''; } }, 6000);
     };
   };
   const guardar = () => {
