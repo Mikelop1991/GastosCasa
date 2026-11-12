@@ -318,18 +318,29 @@ function leerImporte(txt) {
 }
 
 /* ====================== conexión con Google (igual que Mendiak) ====================== */
+function partirDireccion(txt, claveAparte) {
+  let t = String(txt || '').trim();
+  let k = String(claveAparte || '').trim();
+  const mk = t.match(/[?&#]k=([^&#\s]+)/);
+  if (mk) k = decodeURIComponent(mk[1]);
+  const mu = t.match(/[#?&]u=([^&#\s]+)/);
+  if (mu) t = decodeURIComponent(mu[1]);
+  const me = t.match(/https:\/\/script\.google(?:usercontent)?\.com\/[^?#\s]*\/exec/);
+  return { url: me ? me[0] : t.replace(/[?#].*$/, ''), k: k };
+}
 function leerConfigDeEnlace() {
   const h = new URLSearchParams(location.hash.slice(1)), q = new URLSearchParams(location.search);
   const u = h.get('u') || q.get('u'), k = h.get('k') || q.get('k');
   if (u && k) {
-    S.cfg = { url: u.trim().replace(/[?#].*$/, ''), k: k.trim() }; store.set('cfg', S.cfg);
+    S.cfg = partirDireccion(u, k); store.set('cfg', S.cfg);
     if (location.hash) history.replaceState(null, '', location.pathname + '?u=' + encodeURIComponent(S.cfg.url) + '&k=' + encodeURIComponent(S.cfg.k));
   } else if (S.cfg && S.cfg.url && S.cfg.k && !q.get('u')) {
     history.replaceState(null, '', location.pathname + '?u=' + encodeURIComponent(S.cfg.url) + '&k=' + encodeURIComponent(S.cfg.k));
   }
 }
 async function api(method, body) {
-  if (!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec/.test(S.cfg.url)) throw new Error('DIRECCION');
+  if (!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(S.cfg.url)) throw new Error('DIRECCION');
+  if (!S.cfg.k) throw new Error('CLAVE');
   const u = S.cfg.url + (method === 'GET' ? (S.cfg.url.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(S.cfg.k) : '');
   const r = await fetch(u, method === 'GET' ? { cache: 'no-store' } : { method: 'POST', body: JSON.stringify(Object.assign({ k: S.cfg.k }, body)) });
   const txt = await r.text();
@@ -728,7 +739,7 @@ function vAjustes() {
     <section class="panel"><h3>Conexión con Google</h3>
       ${S.error ? `<p style="margin:0;padding:10px 12px;border-radius:10px;background:var(--stamp-soft);color:var(--ink)"><b style="color:var(--stamp)">No se ha podido conectar (${esc(S.error[0])})</b><br>${esc(S.error[1])}</p>` : (S.ultimaSync ? '<p style="margin:0"><span class="sello">Conectado</span></p>' : '')}
       <p class="small muted" style="margin:0">Se configura sola al abrir el enlace de instalación. Solo hace falta tocar esto si cambia.</p>
-      <div class="field"><label for="aUrl">Dirección del script</label><input type="url" id="aUrl" value="${esc(S.cfg?.url || '')}" placeholder="https://script.google.com/macros/s/…/exec"></div>
+      <div class="field"><label for="aUrl">Dirección del script <span class="muted small">(puedes pegar la que acaba en /exec?k=… y la clave se rellena sola)</span></label><input type="url" id="aUrl" value="${esc(S.cfg?.url || '')}" placeholder="https://script.google.com/macros/s/…/exec"></div>
       <div class="field"><label for="aK">Clave</label><input type="text" id="aK" value="${esc(S.cfg?.k || '')}" autocomplete="off"></div>
       <div class="seg"><button type="button" class="btn go" id="aSave">Guardar y actualizar</button><button type="button" class="btn" id="aSync">Actualizar ahora</button></div>
       <p class="small muted" style="margin:0">${S.ultimaSync ? 'Última actualización: ' + S.ultimaSync.toLocaleString('es-ES') : ''}${S.pend.length ? ' · ' + S.pend.length + ' cambios por enviar' : ''}</p>
@@ -739,7 +750,13 @@ function vAjustes() {
     </section>
   </div>`;
   $$('[data-letra]').forEach(b => b.onclick = () => { store.set('letra', b.dataset.letra); aplicarLetra(); vAjustes(); });
-  $('#aSave').onclick = () => { S.cfg = { url: $('#aUrl').value.trim().replace(/[?#].*$/, ''), k: $('#aK').value.trim() }; store.set('cfg', S.cfg); leerConfigDeEnlace(); sincronizar(true); };
+  $('#aSave').onclick = () => {
+    S.cfg = partirDireccion($('#aUrl').value, $('#aK').value); store.set('cfg', S.cfg);
+    // la barra de direcciones pasa a llevar la conexión nueva (antes podía quedarse una vieja y deshacer el cambio)
+    history.replaceState(null, '', location.pathname + '?u=' + encodeURIComponent(S.cfg.url) + '&k=' + encodeURIComponent(S.cfg.k));
+    S.error = null; store.set('error', null); S.online = true;
+    sincronizar(true).then(() => { if (S.tab === 'ajustes') vAjustes(); });
+  };
   $('#aSync').onclick = () => sincronizar(true);
 }
 
