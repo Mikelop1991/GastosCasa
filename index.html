@@ -701,6 +701,7 @@ function vAnio() {
         <p class="small muted" style="margin:0">Si Excel lo abre en «Vista protegida», pulsa «Habilitar edición» para que se calculen los totales.</p>
       </section>
     </div>
+    <section class="panel" id="pdfPanel"></section>
   </div>`;
   enlazarAnios();
   $$('[data-m]').forEach(b => b.onclick = () => { S.mes = `${y}-${pad(+b.dataset.m + 1)}`; if (S.mes > mesHoy()) S.mes = mesHoy(); irA('libreta'); });
@@ -711,6 +712,7 @@ function vAnio() {
   $('#xlHasta').onchange = e => fijar(S.xlDesde, +e.target.value);
   $$('[data-per]').forEach(b => { const [d, h] = b.dataset.per.split('-').map(Number); b.classList.toggle('on', d === S.xlDesde && h === S.xlHasta); b.onclick = () => fijar(d, h); });
   $('#xlBtn').onclick = () => exportarExcel(y, S.xlDesde, S.xlHasta);
+  panelPdf(`${y}-01`, y === mesHoy().slice(0, 4) ? mesHoy() : `${y}-12`, 'anio' + y);
 }
 
 /* ---- todos los años: totales, evolución y comparación ---- */
@@ -788,8 +790,10 @@ function vTodos() {
       </table></div>
       ${anios.includes(hoyY) && hoyM < 12 && anios.length > 1 ? `<p class="small muted" style="margin:0">* ${hoyY} hasta ${MESES_L[hoyM - 1]}. «Cambio» compara ${anios[anios.length - 1]} con ${anios[anios.length - 2]} en los mismos meses. Euros sin decimales.</p>` : '<p class="small muted" style="margin:0">Euros sin decimales.</p>'}
     </section>
+    <section class="panel" id="pdfPanel"></section>
   </div>`;
   enlazarAnios(); enlazarBuscador('todos');
+  panelPdf(primerMes(), mesHoy(), 'todos');
   $$('[data-cc2]').forEach(b => { const ir = () => { S.cmpCat = b.dataset.cc2; vTodos(); }; b.onclick = ir; b.onkeydown = e => { if (e.key === 'Enter') ir(); }; });
   $$('[data-ver]').forEach(b => b.onclick = () => { S.vista = 'anio'; const a = b.dataset.ver; S.mes = a === hoyY ? mesHoy() : a + '-12'; render(); window.scrollTo(0, 0); });
   if (anios.length > 1) {
@@ -844,6 +848,206 @@ function grafMeses(anios, porMes, A, B, hoyY, hoyM) {
     ${MESES_L.map((m, i) => { const a = tA[i], b = tB[i]; const p = a !== null && b ? Math.round((a - b) / b * 100) : null;
       return `<tr><th scope="row">${m}</th><td class="num">${a === null ? '—' : eur(a)}</td><td class="num">${b === null ? '—' : eur(b)}</td><td>${p === null ? '—' : `<span class="dif ${p > 0 ? 'up' : p < 0 ? 'down' : ''}">${p > 0 ? '▲' : p < 0 ? '▼' : '='} ${Math.abs(p)} %</span>`}</td></tr>`; }).join('')}
     <tr class="tot"><th scope="row">Total</th><td class="num">${eur(suma(tA.filter(v => v !== null).map(v => ({ importe: v }))))}</td><td class="num">${eur(suma(tB.filter(v => v !== null).map(v => ({ importe: v }))))}</td><td></td></tr></tbody></table>`;
+}
+
+/* ---- informe en PDF: el periodo que se quiera, con comparativas si abarca varios años ---- */
+const primerMes = () => S.gastos.length ? S.gastos.reduce((m, g) => g.fecha < m ? g.fecha : m, '9999').slice(0, 7) : mesHoy();
+const mesesEntre = (d, h) => { const out = []; for (let m = d; m <= h; m = mover(m, 1)) out.push(m); return out; };
+const nombreMesL = ym => MESES_L[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4);
+function panelPdf(defD, defH, clave) {
+  const el = $('#pdfPanel'); if (!el) return;
+  if (S.pdfClave !== clave) { S.pdfClave = clave; S.pdfDesde = defD < primerMes() ? primerMes() : defD; S.pdfHasta = defH; }
+  const todos = mesesEntre(primerMes() < mesHoy() ? primerMes() : mesHoy(), mesHoy()).reverse();
+  const opc = sel => todos.map(m => `<option value="${m}" ${m === sel ? 'selected' : ''}>${nombreMesL(m)}</option>`).join('');
+  const yH = mesHoy().slice(0, 4), yP = String(+yH - 1);
+  const rapidos = [['Este año', `${yH}-01`, mesHoy()], ['Año pasado', `${yP}-01`, `${yP}-12`], ['Últimos 12 meses', mover(mesHoy(), -11), mesHoy()], ['Todo', primerMes(), mesHoy()]]
+    .map(([t, d, h]) => [t, d < primerMes() ? primerMes() : d, h]).filter(([, d, h]) => d <= h);
+  const n = mesesEntre(S.pdfDesde, S.pdfHasta).length;
+  const varios = S.pdfDesde.slice(0, 4) !== S.pdfHasta.slice(0, 4);
+  el.innerHTML = `<h3>Informe para imprimir (PDF)</h3>
+    <p class="small muted" style="margin:0">Un resumen en hojas A4 de los gastos del periodo que elijas: totales, mes a mes y por concepto. Si el periodo abarca varios años, añade la comparación entre ellos.</p>
+    <div class="periodo">
+      <label>Desde<select id="pdD">${opc(S.pdfDesde)}</select></label>
+      <label>Hasta<select id="pdH">${opc(S.pdfHasta)}</select></label>
+    </div>
+    <div class="seg" role="group" aria-label="Periodos rápidos">${rapidos.map(([t, d, h]) => `<button type="button" data-pd="${d}|${h}" class="${d === S.pdfDesde && h === S.pdfHasta ? 'on' : ''}">${t}</button>`).join('')}</div>
+    <p class="small muted" style="margin:0">${n} ${n === 1 ? 'mes' : 'meses'}, de ${nombreMesL(S.pdfDesde)} a ${nombreMesL(S.pdfHasta)}${varios ? '. Con comparación entre años.' : '.'}</p>
+    <button type="button" class="btn go wide" id="pdfBtn">Descargar el informe en PDF</button>`;
+  const fijar = (d, h) => { if (d > h) [d, h] = [h, d]; S.pdfDesde = d; S.pdfHasta = h; panelPdf(defD, defH, clave); };
+  $('#pdD').onchange = e => fijar(e.target.value, S.pdfHasta);
+  $('#pdH').onchange = e => fijar(S.pdfDesde, e.target.value);
+  $$('[data-pd]').forEach(b => b.onclick = () => { const [d, h] = b.dataset.pd.split('|'); fijar(d, h); });
+  $('#pdfBtn').onclick = () => informePdf(S.pdfDesde, S.pdfHasta);
+}
+function datosInforme(desde, hasta) {
+  const ms = mesesEntre(desde, hasta), hoyM = mesHoy();
+  const enPer = S.gastos.filter(g => ms.includes(mesDe(g.fecha)));
+  const anios = [...new Set(ms.map(m => m.slice(0, 4)))];
+  const tm = ms.map(m => ({ m, v: suma(enPer.filter(g => mesDe(g.fecha) === m)), futuro: m > hoyM }));
+  const conGasto = tm.filter(x => x.v > 0);
+  const total = suma(enPer);
+  const cats = CATS.map(c => ({ c, v: suma(enPer.filter(g => g.categoria === c.k)) })).filter(x => x.v).sort((a, b) => b.v - a.v);
+  // cada año: sus meses dentro del periodo, y lo mismo del año anterior (esté o no en el periodo) para comparar
+  const mesesDe = a => ms.filter(m => m.startsWith(a) && m <= hoyM).map(m => m.slice(5));
+  const sumaMeses = (a, mm, k) => suma(S.gastos.filter(g => g.fecha.startsWith(a + '-') && mm.includes(g.fecha.slice(5, 7)) && (!k || g.categoria === k)));
+  const porAnio = anios.map(a => { const mm = mesesDe(a); const v = sumaMeses(a, mm); const ant = sumaMeses(String(+a - 1), mm);
+    return { a, mm, v, n: mm.length, conG: new Set(enPer.filter(g => g.fecha.startsWith(a + '-')).map(g => mesDe(g.fecha))).size, ant, hayAnt: S.gastos.some(g => g.fecha.startsWith((+a - 1) + '-') && mm.includes(g.fecha.slice(5, 7))) }; });
+  const catAnio = CATS.filter(c => enPer.some(g => g.categoria === c.k)).map(c => ({ c, vs: porAnio.map(p => sumaMeses(p.a, p.mm, c.k)), tot: suma(enPer.filter(g => g.categoria === c.k)) })).sort((a, b) => b.tot - a.tot);
+  const mx = conGasto.length ? conGasto.reduce((a, b) => b.v > a.v ? b : a) : null;
+  return { ms, desde, hasta, anios, tm, total, media: conGasto.length ? total / conGasto.length : 0, nConGasto: conGasto.length, cats, porAnio, catAnio, mx, n: enPer.length,
+    varios: anios.length > 1, hastaHoy: hasta >= hoyM };
+}
+function iconoPng() {
+  return new Promise(ok => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d').drawImage(im, 0, 0); try { ok(c.toDataURL('image/png')); } catch (e) { ok(null); } }; im.onerror = () => ok(null); im.src = 'icon-192.png'; });
+}
+async function informePdf(desde, hasta) {
+  if (S.demo) { toast('En la versión de prueba no se descarga.'); return; }
+  const b = $('#pdfBtn'); const txt = b.textContent; b.disabled = true; b.textContent = 'Preparando el PDF…';
+  try {
+    await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'jspdf');
+    await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js', '__gcAutotable');
+    window.__gcAutotable = true;
+    const d = datosInforme(desde, hasta), ico = await iconoPng();
+    const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const C_ = { ink: [18, 58, 51], ink2: [74, 100, 93], rule: [205, 222, 213], paper: [232, 240, 235], band: [18, 58, 51], a: [19, 134, 106], b: [167, 128, 44], otros: [185, 203, 195], up: [179, 38, 47], down: [19, 134, 106], gold: [167, 128, 44] };
+    const L = 14, W = 182, R = L + W, num = v => eur(v) + ' €', col = k => doc.setTextColor(...C_[k]);
+    const periodo = d.desde === d.hasta ? nombreMesL(d.desde) : `de ${nombreMesL(d.desde)} a ${nombreMesL(d.hasta)}`;
+    const cambio = (v, ant) => ant ? (v - ant) / ant * 100 : null;
+    const pctTxt = p => p === null ? '—' : (p > 0 ? '+' : p < 0 ? '-' : '') + Math.abs(Math.round(p)) + ' %';
+    // cabecera
+    doc.setFillColor(...C_.band); doc.rect(0, 0, 210, 30, 'F');
+    doc.setFillColor(...C_.gold); for (let x = 0; x < 210; x += 5) doc.rect(x, 30, 3.4, 1, 'F');
+    if (ico) doc.addImage(ico, 'PNG', L, 6, 18, 18);
+    doc.setTextColor(234, 244, 239); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text('Gastos Casa', L + 23, 14);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.text('Informe de gastos · ' + periodo, L + 23, 21);
+    const hoy = new Date(); doc.setFontSize(7.5);
+    doc.text(`Hecho el ${hoy.getDate()} de ${MESES_L[hoy.getMonth()]} de ${hoy.getFullYear()}`, R, 12, { align: 'right' });
+    if (d.hastaHoy) doc.text('Datos hasta ese día', R, 16, { align: 'right' });
+    // cifras
+    const kw = (W - 9) / 4;
+    const tarjetas = [['Total del periodo', num(d.total)], ['Media al mes', d.nConGasto ? num(d.media) : '—'], ['Mes más caro', d.mx ? `${MESES_L[+d.mx.m.slice(5) - 1][0].toUpperCase() + MESES_L[+d.mx.m.slice(5) - 1].slice(1)}${d.varios ? ' ' + d.mx.m.slice(0, 4) : ''}` : '—', d.mx ? num(d.mx.v) : ''], ['Lo que más se lleva', d.cats[0] ? d.cats[0].c.n : '—', d.cats[0] ? `${num(d.cats[0].v)} · ${Math.round(d.cats[0].v / d.total * 100)} %` : '']];
+    tarjetas.forEach(([t, v, sub], k) => { const x = L + k * (kw + 3);
+      doc.setFillColor(...C_.paper); doc.roundedRect(x, 37, kw, 20, 2, 2, 'F'); doc.setFillColor(...C_.gold); doc.rect(x, 37, 1.1, 20, 'F');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); col('ink2'); doc.text(t, x + 4, 42.5);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(v.length > 13 ? 11 : 13); col('ink'); doc.text(v, x + 4, 49.5);
+      if (sub) { doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); col('ink2'); doc.text(sub, x + 4, 54.2); } });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); col('ink2');
+    doc.text(`${d.n} apuntes en ${d.ms.length} ${d.ms.length === 1 ? 'mes' : 'meses'}${d.nConGasto < d.ms.length ? ` (${d.nConGasto} con gastos)` : ''}. La media al mes cuenta solo los meses con gastos.`, L, 62);
+    const titulo = (t, y) => { if (y > 262) { doc.addPage(); y = 18; } doc.setFont('helvetica', 'bold'); doc.setFontSize(12); col('ink'); doc.text(t, L, y); doc.setDrawColor(...C_.ink); doc.setLineWidth(0.5); doc.line(L, y + 1.8, R, y + 1.8); return y + 3.5; };
+    const estilo = { font: 'helvetica', fontSize: 8.8, cellPadding: { top: 1.3, bottom: 1.3, left: 2, right: 2 }, textColor: C_.ink, lineColor: C_.rule, lineWidth: { bottom: 0.2 } };
+    const cab = { fillColor: false, textColor: C_.ink2, fontStyle: 'bold', fontSize: 7.5, lineColor: C_.ink, lineWidth: { bottom: 0.4 } };
+    const pie = { fillColor: C_.paper, textColor: C_.ink, fontStyle: 'bold', fontSize: 9.5, lineColor: C_.ink, lineWidth: { top: 0.5 } };
+    const tabla = (o) => { doc.autoTable(Object.assign({ margin: { left: L, right: L, top: 16 }, theme: 'plain', styles: estilo, headStyles: cab, footStyles: pie }, o)); return doc.lastAutoTable.finalY; };
+    const colorCambio = (c, p) => { if (p === null) return; c.cell.styles.textColor = p > 0.5 ? C_.up : p < -0.5 ? C_.down : C_.ink2; c.cell.styles.fontStyle = 'bold'; };
+    let y = 70;
+
+    if (d.varios) {
+      // año a año
+      y = titulo('Año a año', y);
+      const filasA = d.porAnio.map(p => { const pc = p.hayAnt ? cambio(p.v, p.ant) : null;
+        return { fila: [p.a + (p.n < 12 ? `  (${p.n === 1 ? MESES_L[+p.mm[0] - 1] : MESES_C[+p.mm[0] - 1] + '–' + MESES_C[+p.mm[p.mm.length - 1] - 1]})` : ''), num(p.v), p.conG ? num(p.v / p.conG) : '—', p.hayAnt ? num(p.ant) : '—', pctTxt(pc)], pc }; });
+      y = tabla({ startY: y + 0.5, head: [['AÑO', 'TOTAL', 'MEDIA AL MES', 'AÑO ANTERIOR, MISMOS MESES', 'CAMBIO']], body: filasA.map(f => f.fila),
+        foot: [['Total del periodo', num(d.total), d.nConGasto ? num(d.media) : '', '', '']],
+        columnStyles: { 0: { cellWidth: 52 }, 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right', cellWidth: 20 } },
+        didParseCell: c => { if (c.column.index > 0) c.cell.styles.halign = 'right'; if (c.section === 'body' && c.column.index === 4) colorCambio(c, filasA[c.row.index].pc); } });
+      y += 7;
+      // gráfico mes a mes por años
+      y = graficoPdf(doc, d, y, C_, L, W);
+      y += 6;
+      // mes a mes, una columna por año
+      y = titulo('Mes a mes', y);
+      const mesesN = [...new Set(d.ms.map(m => m.slice(5)))].sort();
+      const val = (a, mm) => { const m = `${a}-${mm}`; if (!d.ms.includes(m)) return ''; if (m > mesHoy()) return '·'; const v = d.tm.find(x => x.m === m).v; return v ? eur(v) : '—'; };
+      y = tabla({ startY: y + 0.5, head: [['MES'].concat(d.anios)], body: mesesN.map(mm => [MESES_L[+mm - 1]].concat(d.anios.map(a => val(a, mm)))),
+        foot: [['Total'].concat(d.porAnio.map(p => num(p.v)))],
+        didParseCell: c => { if (c.column.index > 0) c.cell.styles.halign = 'right'; } });
+      y += 7;
+      // conceptos por años
+      y = titulo('Cada concepto por años', y);
+      const ult = d.porAnio[d.porAnio.length - 1];
+      const filasC = d.catAnio.map(x => { const ant = sumaAntCat(ult, x.c.k); const pc = ult.hayAnt && ant ? cambio(x.vs[x.vs.length - 1], ant) : null; return { fila: [x.c.n].concat(x.vs.map(v => v ? eur(v, 0) : '—'), [num(x.tot), pctTxt(pc)]), pc }; });
+      y = tabla({ startY: y + 0.5, head: [['CONCEPTO'].concat(d.anios, ['TOTAL', 'CAMBIO*'])], body: filasC.map(f => f.fila),
+        foot: [['Total'].concat(d.porAnio.map(p => eur(p.v, 0)), [num(d.total), ''])],
+        columnStyles: { 0: { cellWidth: 40 } },
+        didParseCell: c => { if (c.column.index > 0) c.cell.styles.halign = 'right'; if (c.section === 'body' && c.column.index === d.anios.length + 2) colorCambio(c, filasC[c.row.index].pc); } });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); col('ink2');
+      if (y > 280) { doc.addPage(); y = 14; }
+      doc.text(`Por años, en euros sin decimales. * Cambio de ${ult.a} frente a los mismos meses de ${+ult.a - 1}.`, L, y + 4.5);
+      y += 10;
+    } else {
+      // un solo año: mes a mes y por concepto, a dos columnas
+      const half = (W - 8) / 2;
+      const yy = titulo('Mes a mes', y);
+      const mxv = Math.max(1, ...d.tm.map(x => x.v));
+      doc.autoTable({ startY: yy + 0.5, margin: { left: L, top: 16 }, tableWidth: half, theme: 'plain', styles: estilo, headStyles: cab, footStyles: pie,
+        head: [['MES', '', 'TOTAL']], body: d.tm.map(x => [MESES_L[+x.m.slice(5) - 1], '', x.futuro ? '·' : x.v ? num(x.v) : '—']),
+        foot: [['Total', '', num(d.total)]], columnStyles: { 1: { cellWidth: 30 }, 2: { halign: 'right' } },
+        didParseCell: c => { if (c.column.index === 2) c.cell.styles.halign = 'right'; },
+        didDrawCell: c => { if (c.section === 'body' && c.column.index === 1) { const v = d.tm[c.row.index].v; if (v) { doc.setFillColor(...C_.a); doc.roundedRect(c.cell.x + 1, c.cell.y + c.cell.height / 2 - 1.3, Math.max(0.8, (c.cell.width - 2) * v / mxv), 2.6, 0.6, 0.6, 'F'); } } } });
+      const f1 = doc.lastAutoTable.finalY;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); col('ink'); doc.text('Por concepto', L + half + 8, y); doc.setLineWidth(0.5); doc.line(L + half + 8, y + 1.8, R, y + 1.8);
+      doc.autoTable({ startY: yy + 0.5, margin: { left: L + half + 8, top: 16 }, tableWidth: half, theme: 'plain', styles: estilo, headStyles: cab, footStyles: pie,
+        head: [['CONCEPTO', 'IMPORTE', '%']], body: d.cats.length ? d.cats.map(x => [x.c.n, num(x.v), Math.round(x.v / d.total * 100) + ' %']) : [['Nada en este periodo', '', '']],
+        foot: [['Total', num(d.total), '']], columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right', cellWidth: 13 } },
+        didParseCell: c => { if (c.column.index > 0) c.cell.styles.halign = 'right'; } });
+      y = Math.max(f1, doc.lastAutoTable.finalY) + 7;
+      // comparación con el año anterior en los mismos meses
+      const p = d.porAnio[0];
+      if (p && p.hayAnt) {
+        y = titulo(`Comparado con los mismos meses de ${+p.a - 1}`, y);
+        const filasC = d.catAnio.map(x => { const ant = sumaAntCat(p, x.c.k); const pc = ant ? cambio(x.vs[0], ant) : null; return { fila: [x.c.n, ant ? num(ant) : '—', num(x.vs[0]), pctTxt(pc)], pc }; });
+        y = tabla({ startY: y + 0.5, head: [['CONCEPTO', String(+p.a - 1), p.a, 'CAMBIO']], body: filasC.map(f => f.fila),
+          foot: [['Total', num(p.ant), num(p.v), pctTxt(cambio(p.v, p.ant))]],
+          columnStyles: { 0: { cellWidth: 70 } },
+          didParseCell: c => { if (c.column.index > 0) c.cell.styles.halign = 'right'; if (c.column.index === 3) { if (c.section === 'body') colorCambio(c, filasC[c.row.index].pc); if (c.section === 'foot') colorCambio(c, cambio(p.v, p.ant)); } } });
+        y += 4;
+      }
+    }
+    const nP = doc.getNumberOfPages();
+    for (let k = 1; k <= nP; k++) { doc.setPage(k); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); col('ink2'); doc.text('Gastos Casa · ' + periodo, L, 290); doc.text(`${k} / ${nP}`, R, 290, { align: 'right' }); }
+    doc.setProperties({ title: 'Gastos Casa · Informe ' + periodo, author: 'Gastos Casa' });
+    const archivo = `Informe_gastos_casa_${d.desde}_a_${d.hasta}.pdf`;
+    const blob = doc.output('blob');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = archivo;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    toast('Informe descargado: ' + archivo);
+  } catch (e) {
+    console.error(e);
+    toast('Hace falta conexión para preparar el PDF.');
+  }
+  b.disabled = false; b.textContent = txt;
+}
+const sumaAntCat = (p, k) => suma(S.gastos.filter(g => g.categoria === k && g.fecha.startsWith((+p.a - 1) + '-') && p.mm.includes(g.fecha.slice(5, 7))));
+/* gráfico de líneas mes a mes: el último año y el anterior en color, el resto en gris */
+function graficoPdf(doc, d, y, C_, L, W) {
+  if (y > 200) { doc.addPage(); y = 18; }
+  const H = 62, gl = 14, gr = 16, x0 = L + gl, x1 = L + W - gr, y0 = y + 8, y1 = y + H;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...C_.ink); doc.text('Mes a mes por años', L, y);
+  doc.setDrawColor(...C_.ink); doc.setLineWidth(0.5); doc.line(L, y + 1.8, L + W, y + 1.8);
+  const serie = a => Array.from({ length: 12 }, (_, i) => { const m = `${a}-${pad(i + 1)}`; if (!d.ms.includes(m) || m > mesHoy()) return null; const v = d.tm.find(x => x.m === m).v; return v || null; });
+  const series = d.anios.map(a => [a, serie(a)]);
+  const max = Math.max(1, ...series.flatMap(([, v]) => v.filter(x => x !== null)));
+  const paso = max > 1500 ? 500 : max > 600 ? 200 : max > 300 ? 100 : max > 120 ? 50 : 20, top = Math.ceil(max / paso) * paso;
+  const X = i => x0 + i * (x1 - x0) / 11, Y = v => y1 - (y1 - y0) * v / top;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(...C_.ink2);
+  for (let v = 0; v <= top; v += paso) { doc.setDrawColor(...C_.rule); doc.setLineWidth(0.15); doc.line(x0, Y(v), x1, Y(v)); doc.text(eur(v, 0), x0 - 2, Y(v) + 1, { align: 'right' }); }
+  MESES_C.forEach((m, i) => doc.text(m[0].toUpperCase() + m.slice(1), X(i), y1 + 4, { align: 'center' }));
+  const nA = series.length, ult = series[nA - 1][0], pen = nA > 1 ? series[nA - 2][0] : null;
+  const dibuja = ([a, v], color, grosor, guiones) => {
+    doc.setDrawColor(...color); doc.setLineWidth(grosor); doc.setLineDashPattern(guiones ? [1.6, 1.1] : [], 0);
+    for (let i = 1; i < 12; i++) if (v[i] !== null && v[i - 1] !== null) doc.line(X(i - 1), Y(v[i - 1]), X(i), Y(v[i]));
+    doc.setLineDashPattern([], 0); doc.setFillColor(...color);
+    v.forEach((x, i) => { if (x !== null) doc.circle(X(i), Y(x), grosor > 0.5 ? 0.8 : 0.5, 'F'); });
+  };
+  series.filter(([a]) => a !== ult && a !== pen).forEach(s => dibuja(s, C_.otros, 0.35, false));
+  if (pen) dibuja(series[nA - 2], C_.b, 0.6, true);
+  dibuja(series[nA - 1], C_.a, 0.8, false);
+  // leyenda
+  let lx = L + W; doc.setFontSize(7.5);
+  [[ult, C_.a, false], pen ? [pen, C_.b, true] : null, nA > 2 ? ['otros años', C_.otros, false] : null].filter(Boolean).reverse().forEach(([t, c, g]) => {
+    const w = doc.getTextWidth(String(t)); lx -= w; doc.setTextColor(...C_.ink); doc.text(String(t), lx, y - 0.2);
+    doc.setDrawColor(...c); doc.setLineWidth(0.8); doc.setLineDashPattern(g ? [1.6, 1.1] : [], 0); doc.line(lx - 7, y - 1.2, lx - 1.5, y - 1.2); doc.setLineDashPattern([], 0); lx -= 12; });
+  return y1 + 6;
 }
 
 /* ---- buscador ---- */
@@ -980,7 +1184,7 @@ function abrirHoja(o) {
 }
 
 /* ====================== Excel: la misma plantilla de siempre ====================== */
-function cargarScript(src) { return new Promise((ok, ko) => { if (window.JSZip) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); }
+function cargarScript(src, glob = 'JSZip') { return new Promise((ok, ko) => { if (window[glob]) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); }
 const COLS = 'CDEFGHIJKLMN'.split('');
 const xmlEsc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 const colNum = c => { let n = 0; for (const ch of c) n = n * 26 + ch.charCodeAt(0) - 64; return n; };
