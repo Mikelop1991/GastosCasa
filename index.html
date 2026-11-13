@@ -167,6 +167,15 @@ main { max-width: 1040px; margin: 0 auto; padding: 18px 16px 30px; }
 .mcol span { font-size: .76rem; color: var(--ink-2); }
 .mcol b { position: absolute; top: -18px; font-size: .66rem; font-weight: 600; color: var(--ink-2); white-space: nowrap; display: none; }
 .mcol.sel b { display: block; color: var(--ink); }
+.buscar { display: grid; gap: 6px; }
+.bq { display: flex; align-items: center; gap: 8px; background: var(--sheet); border: 2px solid var(--ink); border-radius: 12px; padding: 0 6px 0 12px; }
+.bq:focus-within { border-color: var(--note); }
+.bq svg { width: 22px; height: 22px; color: var(--ink-2); flex: none; }
+.bq input { border: 0; background: transparent; min-height: 54px; padding: 0; font-size: 1.05rem; outline: none; }
+.bq input::-webkit-search-cancel-button { display: none; }
+.bq .x { flex: none; width: 40px; height: 40px; }
+.barra[role=button] { cursor: pointer; border-radius: 6px; }
+.barra[role=button]:hover span:first-child { color: var(--note); text-decoration: underline; }
 .periodo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .periodo label { display: grid; gap: 4px; font-weight: 700; font-size: .9rem; }
 .cifras { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -203,6 +212,11 @@ input[type=text], input[type=date], input[type=url], select { border: 1px solid 
 details summary { cursor: pointer; font-weight: 600; color: var(--ink-2); min-height: 40px; display: flex; align-items: center; }
 .acciones { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 14px; }
 .acciones .go { min-height: 56px; font-size: 1.1rem; }
+.repe { background: var(--stamp-soft); border: 2px solid var(--stamp); border-radius: 12px; padding: 12px 12px 6px; display: grid; gap: 4px; }
+.repe b { color: var(--stamp); font-size: 1.1rem; }
+.repe-l { margin: 4px -12px 0; }
+.repe-l .mov { background: transparent; cursor: default; border-bottom: 0; border-top: 1px solid var(--rule); }
+.repe-l .mov .lapiz { display: none; }
 
 /* ---------- pestañas ---------- */
 nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--sheet); border-top: 1px solid var(--rule);
@@ -302,7 +316,7 @@ const mover = (ym, n) => { let [y, m] = ym.split('-').map(Number); m += n; while
 const nombreMes = ym => { const [y, m] = ym.split('-').map(Number); return MESES_L[m - 1][0].toUpperCase() + MESES_L[m - 1].slice(1) + ' ' + y; };
 const eur = (n, dec = 2) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec, useGrouping: true });
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const S = { error: store.get('error', null), gastos: [], pend: [], cfg: store.get('cfg', null), demo: false, tab: 'apuntar', mes: mesHoy(), online: true, ultimaSync: null, nuevo: null };
+const S = { busca: '', error: store.get('error', null), gastos: [], pend: [], cfg: store.get('cfg', null), demo: false, tab: 'apuntar', mes: mesHoy(), online: true, ultimaSync: null, nuevo: null };
 S.xlDesde = 1; S.xlHasta = 12;
 const periodoTxt = (d, h) => d === 1 && h === 12 ? '' : d === h ? MESES_L[d - 1] : MESES_L[d - 1] + '-' + MESES_L[h - 1];
 const nombreXl = (y, d, h) => `Descargar Excel · ${periodoTxt(d, h) ? periodoTxt(d, h).replace('-', ' a ') : 'año entero'} ${y}`;
@@ -514,13 +528,15 @@ function render() {
 function irA(tab) { S.tab = tab; cerrarHoja(); render(); window.scrollTo(0, 0); }
 
 /* ---- libreta del mes (movimientos impresos) ---- */
+const fechaCorta = g => /^X/.test(g.id) ? MESES_C[+g.fecha.slice(5, 7) - 1] : g.fecha.slice(8, 10) + ' ' + MESES_C[+g.fecha.slice(5, 7) - 1];
+const filaMov = g => `<button type="button" class="mov ${g._local && S.pend.length ? 'pend' : ''} ${g.id === S.nuevo ? 'nuevo' : ''}" data-id="${esc(g.id)}">
+      <span class="d num">${fechaCorta(g)}</span>
+      <span class="c">${esc(CAT[g.categoria]?.n || g.categoria)}${g.nota ? `<small>${esc(g.nota)}</small>` : ''}</span>
+      <span class="i num">${eur(g.importe)}</span><svg class="lapiz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg></button>`;
 function htmlLibreta(ym, max) {
   const arr = delMes(ym).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b._local ? 1 : 0) - (a._local ? 1 : 0));
   const vis = max ? arr.slice(0, max) : arr;
-  const filas = vis.map(g => `<button type="button" class="mov ${g._local && S.pend.length ? 'pend' : ''} ${g.id === S.nuevo ? 'nuevo' : ''}" data-id="${esc(g.id)}">
-      <span class="d num">${/^X/.test(g.id) ? MESES_C[+g.fecha.slice(5, 7) - 1] : g.fecha.slice(8, 10) + ' ' + MESES_C[+g.fecha.slice(5, 7) - 1]}</span>
-      <span class="c">${esc(CAT[g.categoria]?.n || g.categoria)}${g.nota ? `<small>${esc(g.nota)}</small>` : ''}</span>
-      <span class="i num">${eur(g.importe)}</span><svg class="lapiz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg></button>`).join('');
+  const filas = vis.map(g => filaMov(g)).join('');
   return `<section class="libreta" aria-label="Gastos de ${nombreMes(ym)}">
     <div class="lib-head"><h3>Libreta de ${MESES_L[+ym.slice(5) - 1]}</h3><span class="small muted">${arr.length} ${arr.length === 1 ? 'apunte' : 'apuntes'}</span></div>
     ${arr.length ? `<div class="lib-hint">Toca un apunte para corregirlo o borrarlo.</div><div class="lib-cols"><span>Fecha</span><span>Concepto</span><span>Euros</span><span></span></div>${filas}` : `<div class="vacio">Todavía no hay nada apuntado en ${MESES_L[+ym.slice(5) - 1]}.</div>`}
@@ -589,6 +605,13 @@ function vAnio() {
   const rmax = rank.length ? rank[0][1] : 1;
   const selM = +S.mes.slice(5) - 1;
   $('#app').innerHTML = `<div class="view">
+    <section class="buscar" role="search">
+      <label for="bQ" class="lab">Buscar en ${y}</label>
+      <div class="bq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+        <input type="search" id="bQ" value="${esc(S.busca || '')}" placeholder="Concepto, nota o importe: comunidad, extra, 20…" autocomplete="off" enterkeyhint="search">
+        <button type="button" class="x" id="bX" aria-label="Borrar búsqueda" ${S.busca ? '' : 'hidden'}>×</button></div>
+      <div id="bRes" aria-live="polite"></div>
+    </section>
     <div class="panel-head"><h2 style="margin:0">Año ${y}</h2>
       <div class="seg" role="group" aria-label="Año">${anios.map(a => `<button type="button" data-y="${a}" class="${a === y ? 'on' : ''}">${a}</button>`).join('')}</div></div>
     <div class="cifras">
@@ -602,7 +625,7 @@ function vAnio() {
     </section>
     <div class="view two">
       <section class="panel"><h3>Por concepto en ${y}</h3>
-        ${rank.length ? `<div class="barras">${rank.map(([c, v]) => `<div class="barra"><span>${c.n}</span><b class="num">${eur(v)} € <span class="muted small">${Math.round(v / tot * 100)} %</span></b><div class="t"><i style="width:${(v / rmax * 100).toFixed(1)}%"></i></div></div>`).join('')}</div>` : '<p class="muted" style="margin:0">Sin gastos en este año.</p>'}
+        ${rank.length ? `<p class="small muted" style="margin:0">Toca un concepto para ver todos sus apuntes.</p><div class="barras">${rank.map(([c, v]) => `<div class="barra" role="button" tabindex="0" data-bc="${esc(c.n)}"><span>${c.n}</span><b class="num">${eur(v)} € <span class="muted small">${Math.round(v / tot * 100)} %</span></b><div class="t"><i style="width:${(v / rmax * 100).toFixed(1)}%"></i></div></div>`).join('')}</div>` : '<p class="muted" style="margin:0">Sin gastos en este año.</p>'}
       </section>
       <section class="panel"><h3>Excel</h3>
         <p class="small muted" style="margin:0">Es el mismo Excel de siempre, de un año natural: Resumen, un mes por pestaña, el panel y los gráficos. Si eliges solo unos meses, el resto de pestañas sale vacío.</p>
@@ -620,11 +643,43 @@ function vAnio() {
   </div>`;
   $$('[data-y]').forEach(b => b.onclick = () => { const a = b.dataset.y; S.mes = a === mesHoy().slice(0, 4) ? mesHoy() : a + '-12'; render(); });
   $$('[data-m]').forEach(b => b.onclick = () => { S.mes = `${y}-${pad(+b.dataset.m + 1)}`; if (S.mes > mesHoy()) S.mes = mesHoy(); irA('libreta'); });
+  const q = $('#bQ');
+  q.oninput = () => { S.busca = q.value; $('#bX').hidden = !q.value; pintarBusqueda(y); };
+  $('#bX').onclick = () => { S.busca = ''; q.value = ''; $('#bX').hidden = true; pintarBusqueda(y); q.focus(); };
+  $$('[data-bc]').forEach(b => { const ir = () => { S.busca = b.dataset.bc; vAnio(); window.scrollTo({ top: 0, behavior: 'smooth' }); }; b.onclick = ir; b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } }; });
+  pintarBusqueda(y);
   const fijar = (d, h) => { S.xlDesde = Math.min(d, h); S.xlHasta = Math.max(d, h); vAnio(); };
   $('#xlDesde').onchange = e => fijar(+e.target.value, S.xlHasta);
   $('#xlHasta').onchange = e => fijar(S.xlDesde, +e.target.value);
   $$('[data-per]').forEach(b => { const [d, h] = b.dataset.per.split('-').map(Number); b.classList.toggle('on', d === S.xlDesde && h === S.xlHasta); b.onclick = () => fijar(d, h); });
   $('#xlBtn').onclick = () => exportarExcel(y, S.xlDesde, S.xlHasta);
+}
+
+/* ---- buscador ---- */
+const normal = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function buscar(y, texto) {
+  const pal = normal(texto).split(/\s+/).filter(Boolean);
+  if (!pal.length) return null;
+  return S.gastos.filter(g => g.fecha.startsWith(y + '-')).filter(g => {
+    const cat = CAT[g.categoria] || {};
+    const hay = normal([cat.n, g.categoria, g.nota, eur(g.importe), String(g.importe), MESES_L[+g.fecha.slice(5, 7) - 1]].join(' '));
+    return pal.every(p => hay.includes(p.replace('.', ',')) || hay.includes(p));
+  }).sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+function pintarBusqueda(y) {
+  const el = $('#bRes'); if (!el) return;
+  const r = buscar(y, S.busca);
+  if (!r) { el.innerHTML = ''; return; }
+  if (!r.length) { el.innerHTML = `<p class="muted" style="margin:8px 0 0">Nada en ${y} con «${esc(S.busca)}». Prueba con otra palabra o cambia de año.</p>`; return; }
+  const tot = suma(r);
+  const meses = new Set(r.map(g => mesDe(g.fecha))).size;
+  el.innerHTML = `<section class="libreta" style="margin-top:10px">
+    <div class="lib-head"><h3>«${esc(S.busca)}» en ${y}</h3><span class="small muted">${r.length} ${r.length === 1 ? 'apunte' : 'apuntes'} · ${meses} ${meses === 1 ? 'mes' : 'meses'}</span></div>
+    ${r.map(filaMov).join('')}
+    <div class="lib-foot"><span>Total</span><span class="num">${eur(tot)} €</span></div>
+    ${meses > 1 ? `<div class="lib-hint" style="border:0">De media, ${eur(tot / meses)} € en los meses que aparece.</div>` : ''}
+  </section>`;
+  el.querySelectorAll('.mov[data-id]').forEach(b => b.onclick = () => { const g = S.gastos.find(x => x.id === b.dataset.id); if (g) abrirHoja({ editar: g }); });
 }
 
 /* ---- hoja para apuntar / corregir ---- */
@@ -680,13 +735,15 @@ function abrirHoja(o) {
     };
     imp.oninput = comprobar; comprobar();
     imp.onkeydown = e => { if (e.key === 'Enter') guardar(); };
+    // si cambia el importe, se vuelve a comprobar si está repetido
+    imp.addEventListener('input', () => { if (sh.querySelector('.repe')) { pinta(); const i = sh.querySelector('#fImp'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); } });
     sh.querySelector('.x').onclick = cerrarHoja;
     sh.querySelectorAll('[data-imp]').forEach(b => b.onclick = () => { imp.value = eur(+b.dataset.imp).replace(/\./g, ''); comprobar(); });
     sh.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { st.fecha = b.dataset.f; pinta(); });
     sh.querySelector('#fFecha').onchange = e => { if (e.target.value) { st.fecha = e.target.value; pinta(); } };
     sh.querySelectorAll('[data-nota]').forEach(b => b.onclick = () => { sh.querySelector('#fNota').value = b.dataset.nota; });
     sh.querySelectorAll('[data-cc]').forEach(b => b.onclick = () => { st.categoria = b.dataset.cc; pinta(); });
-    sh.querySelector('#fOk').onclick = guardar;
+    sh.querySelector('#fOk').onclick = () => guardar();
     const del = sh.querySelector('#fDel');
     if (del) del.onclick = () => {
       if (del.dataset.seguro) { encolar({ accion: 'borrar', id: ed.id }); cerrarHoja(); toast('Apunte borrado'); render(); return; }
@@ -695,9 +752,25 @@ function abrirHoja(o) {
       setTimeout(() => { if (del.isConnected) { delete del.dataset.seguro; del.textContent = 'Borrar este apunte'; del.style.background = ''; del.style.color = ''; } }, 6000);
     };
   };
-  const guardar = () => {
+  const guardar = (aunAsi) => {
     const v = leerImporte(sh.querySelector('#fImp').value);
     if (v === null || isNaN(v) || v === 0) { toast('Falta el importe'); sh.querySelector('#fImp').focus(); return; }
+    // ¿ya estaba apuntado? mismo importe en el mismo mes
+    const cambia = !ed || Math.abs(ed.importe - v) > 0.004 || mesDe(ed.fecha) !== mesDe(st.fecha);
+    const reps = cambia && aunAsi !== true ? S.gastos.filter(x => (!ed || x.id !== ed.id) && mesDe(x.fecha) === mesDe(st.fecha) && Math.abs(x.importe - v) < 0.005) : [];
+    if (reps.length) {
+      const ac = sh.querySelector('.acciones');
+      ac.innerHTML = `<div class="repe" role="alert"><b>¿Ya estaba apuntado?</b>
+          <span>En ${MESES_L[+st.fecha.slice(5, 7) - 1]} ya ${reps.length === 1 ? 'hay un apunte' : 'hay ' + reps.length + ' apuntes'} de ${eur(v)} €:</span>
+          <div class="repe-l">${reps.map(filaMov).join('')}</div></div>
+        <button type="button" class="btn go" id="rNo">${ed ? 'Guardar cambios igualmente' : 'No, es otro: apuntarlo'}</button>
+        <button type="button" class="btn" id="rSi">${ed ? 'Volver sin guardar' : 'Sí, ya estaba: no apuntar'}</button>`;
+      ac.querySelectorAll('.mov').forEach(b => b.disabled = true);
+      ac.querySelector('#rNo').onclick = () => guardar(true);
+      ac.querySelector('#rSi').onclick = () => { cerrarHoja(); toast(ed ? 'Sin cambios' : 'No se ha apuntado nada'); };
+      ac.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      return;
+    }
     const nota = sh.querySelector('#fNota').value.trim().replace(/\s+/g, ' ');
     const g = { id: ed ? ed.id : 'G' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), fecha: st.fecha, categoria: st.categoria, importe: v, nota: nota ? nota[0].toUpperCase() + nota.slice(1) : '' };
     encolar({ accion: ed ? 'editar' : 'crear', gasto: g });
