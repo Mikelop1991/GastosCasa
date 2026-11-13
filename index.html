@@ -167,6 +167,8 @@ main { max-width: 1040px; margin: 0 auto; padding: 18px 16px 30px; }
 .mcol span { font-size: .76rem; color: var(--ink-2); }
 .mcol b { position: absolute; top: -18px; font-size: .66rem; font-weight: 600; color: var(--ink-2); white-space: nowrap; display: none; }
 .mcol.sel b { display: block; color: var(--ink); }
+.periodo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.periodo label { display: grid; gap: 4px; font-weight: 700; font-size: .9rem; }
 .cifras { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (min-width: 640px) { .cifras { grid-template-columns: repeat(4, 1fr); } }
 .cifra { border-left: 3px solid var(--gold); padding: 2px 0 2px 10px; }
@@ -301,6 +303,9 @@ const nombreMes = ym => { const [y, m] = ym.split('-').map(Number); return MESES
 const eur = (n, dec = 2) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec, useGrouping: true });
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const S = { error: store.get('error', null), gastos: [], pend: [], cfg: store.get('cfg', null), demo: false, tab: 'apuntar', mes: mesHoy(), online: true, ultimaSync: null, nuevo: null };
+S.xlDesde = 1; S.xlHasta = 12;
+const periodoTxt = (d, h) => d === 1 && h === 12 ? '' : d === h ? MESES_L[d - 1] : MESES_L[d - 1] + '-' + MESES_L[h - 1];
+const nombreXl = (y, d, h) => `Descargar Excel · ${periodoTxt(d, h) ? periodoTxt(d, h).replace('-', ' a ') : 'año entero'} ${y}`;
 const deFila = r => ({ id: String(r[0]), fecha: String(r[1]).slice(0, 10), categoria: String(r[2]).toUpperCase(), importe: Math.round(Number(r[3]) * 100) / 100, nota: String(r[4] || '') });
 
 /* importes escritos de cualquier manera: "12,5", "12.50 €", "1.234,56", "12'5", "-3" */
@@ -600,15 +605,26 @@ function vAnio() {
         ${rank.length ? `<div class="barras">${rank.map(([c, v]) => `<div class="barra"><span>${c.n}</span><b class="num">${eur(v)} € <span class="muted small">${Math.round(v / tot * 100)} %</span></b><div class="t"><i style="width:${(v / rmax * 100).toFixed(1)}%"></i></div></div>`).join('')}</div>` : '<p class="muted" style="margin:0">Sin gastos en este año.</p>'}
       </section>
       <section class="panel"><h3>Excel</h3>
-        <p class="small muted" style="margin:0">Es el mismo Excel de siempre: Resumen, un mes por pestaña, el panel y los gráficos. Cada apunte va en su fila, con la fecha y la nota en la columna «Fecha / nota».</p>
-        <button type="button" class="btn go wide" id="xlBtn">Descargar GASTOS_CASA_${y}.xlsx</button>
+        <p class="small muted" style="margin:0">Es el mismo Excel de siempre, de un año natural: Resumen, un mes por pestaña, el panel y los gráficos. Si eliges solo unos meses, el resto de pestañas sale vacío.</p>
+        <div class="periodo">
+          <label>Desde<select id="xlDesde">${MESES_L.map((m, i) => `<option value="${i + 1}" ${i + 1 === S.xlDesde ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+          <label>Hasta<select id="xlHasta">${MESES_L.map((m, i) => `<option value="${i + 1}" ${i + 1 === S.xlHasta ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+        </div>
+        <div class="seg" role="group" aria-label="Periodos rápidos">
+          <button type="button" data-per="1-12">Año entero</button><button type="button" data-per="1-6">1.er semestre</button><button type="button" data-per="7-12">2.º semestre</button>
+        </div>
+        <button type="button" class="btn go wide" id="xlBtn">${nombreXl(y, S.xlDesde, S.xlHasta)}</button>
         <p class="small muted" style="margin:0">Si Excel lo abre en «Vista protegida», pulsa «Habilitar edición» para que se calculen los totales.</p>
       </section>
     </div>
   </div>`;
   $$('[data-y]').forEach(b => b.onclick = () => { const a = b.dataset.y; S.mes = a === mesHoy().slice(0, 4) ? mesHoy() : a + '-12'; render(); });
   $$('[data-m]').forEach(b => b.onclick = () => { S.mes = `${y}-${pad(+b.dataset.m + 1)}`; if (S.mes > mesHoy()) S.mes = mesHoy(); irA('libreta'); });
-  $('#xlBtn').onclick = () => exportarExcel(y);
+  const fijar = (d, h) => { S.xlDesde = Math.min(d, h); S.xlHasta = Math.max(d, h); vAnio(); };
+  $('#xlDesde').onchange = e => fijar(+e.target.value, S.xlHasta);
+  $('#xlHasta').onchange = e => fijar(S.xlDesde, +e.target.value);
+  $$('[data-per]').forEach(b => { const [d, h] = b.dataset.per.split('-').map(Number); b.classList.toggle('on', d === S.xlDesde && h === S.xlHasta); b.onclick = () => fijar(d, h); });
+  $('#xlBtn').onclick = () => exportarExcel(y, S.xlDesde, S.xlHasta);
 }
 
 /* ---- hoja para apuntar / corregir ---- */
@@ -743,7 +759,7 @@ function rellenarMes(xml, gastos) {
   }
   return xml;
 }
-async function exportarExcel(y) {
+async function exportarExcel(y, desde = 1, hasta = 12) {
   const b = $('#xlBtn'); const txt = b.textContent; b.disabled = true; b.textContent = 'Preparando el Excel…';
   try {
     await cargarScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
@@ -752,16 +768,19 @@ async function exportarExcel(y) {
     const zip = await JSZip.loadAsync(await r.arrayBuffer());
     for (let m = 1; m <= 12; m++) {
       const p = `xl/worksheets/sheet${m + 1}.xml`;
-      const gs = delMes(`${y}-${pad(m)}`).sort((a, b) => a.fecha.localeCompare(b.fecha));
+      const gs = m < desde || m > hasta ? [] : delMes(`${y}-${pad(m)}`).sort((a, b) => a.fecha.localeCompare(b.fecha));
       zip.file(p, rellenarMes(await zip.file(p).async('string'), gs));
     }
     // el año en los títulos ("ENERO 2026", "RESUMEN DE GASTOS ANUALES 2026"…)
     const ss = await zip.file('xl/sharedStrings.xml').async('string');
-    zip.file('xl/sharedStrings.xml', ss.replace(/(<t[^>]*>[^<]*?)2026([^<]*<\/t>)/g, `$1${y}$2`));
+    const per = periodoTxt(desde, hasta).toUpperCase().replace('-', ' A ');
+    let ss2 = ss.replace(/(<t[^>]*>[^<]*?)2026([^<]*<\/t>)/g, `$1${y}$2`);
+    if (per) ss2 = ss2.replace(`RESUMEN DE GASTOS ANUALES ${y}`, `RESUMEN DE GASTOS ${y} (${per})`).replace(`TOTAL GASTADO EN ${y}`, `TOTAL GASTADO ${per} ${y}`);
+    zip.file('xl/sharedStrings.xml', ss2);
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `GASTOS_CASA_${y}.xlsx`;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `GASTOS_CASA_${y}${periodoTxt(desde, hasta) ? '_' + periodoTxt(desde, hasta) : ''}.xlsx`;
     document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-    toast(`Excel de ${y} descargado`);
+    toast(`Excel descargado: ${periodoTxt(desde, hasta) || 'año'} ${y}`);
   } catch (e) {
     toast(String(e.message) === 'plantilla' ? 'No encuentro la plantilla del Excel.' : 'Hace falta conexión para preparar el Excel.');
   }
