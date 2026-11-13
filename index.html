@@ -34,6 +34,9 @@
   --band: #123a33;
   --band-ink: #eaf4ef;
   --guil: rgba(214, 238, 226, .22);
+  --serie-a: #13866a;     /* año que miras */
+  --serie-b: #a7802c;     /* año con el que comparas */
+  --serie-otros: #b9cbc3;
   --shadow: 0 1px 0 rgba(18,58,51,.08), 0 6px 18px -8px rgba(18,58,51,.25);
   --f-ui: "Libre Franklin", "Franklin Gothic Medium", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-print: "Courier Prime", "Courier New", ui-monospace, monospace;
@@ -44,14 +47,14 @@
   :root:not([data-theme="light"]) {
     --paper: #0d1f1b; --sheet: #142a25; --ink: #e3f1ea; --ink-2: #a4c1b7; --rule: #2a4740;
     --note: #4fb595; --note-ink: #08201a; --note-soft: #1d3d35; --stamp: #f07f86; --stamp-soft: #3d2023;
-    --gold: #d9b45e; --band: #0a1916; --band-ink: #e3f1ea; --guil: rgba(120, 200, 170, .16);
+    --gold: #d9b45e; --band: #0a1916; --band-ink: #e3f1ea; --guil: rgba(120, 200, 170, .16); --serie-a: #2a9876; --serie-b: #b5893a; --serie-otros: #34524a;
     --shadow: 0 1px 0 rgba(0,0,0,.3), 0 6px 18px -8px rgba(0,0,0,.6); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --paper: #0d1f1b; --sheet: #142a25; --ink: #e3f1ea; --ink-2: #a4c1b7; --rule: #2a4740;
   --note: #4fb595; --note-ink: #08201a; --note-soft: #1d3d35; --stamp: #f07f86; --stamp-soft: #3d2023;
-  --gold: #d9b45e; --band: #0a1916; --band-ink: #e3f1ea; --guil: rgba(120, 200, 170, .16);
+  --gold: #d9b45e; --band: #0a1916; --band-ink: #e3f1ea; --guil: rgba(120, 200, 170, .16); --serie-a: #2a9876; --serie-b: #b5893a; --serie-otros: #34524a;
   --shadow: 0 1px 0 rgba(0,0,0,.3), 0 6px 18px -8px rgba(0,0,0,.6); color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -176,6 +179,48 @@ main { max-width: 1040px; margin: 0 auto; padding: 18px 16px 30px; }
 .bq .x { flex: none; width: 40px; height: 40px; }
 .barra[role=button] { cursor: pointer; border-radius: 6px; }
 .barra[role=button]:hover span:first-child { color: var(--note); text-decoration: underline; }
+.cab-anio { flex-wrap: wrap; } .cab-anio h2 { white-space: nowrap; }
+.aviso-anios { margin: 0; padding: 12px 14px; border: 1px dashed var(--gold); border-radius: 12px; background: var(--sheet); }
+.filtro-cat { display: grid; gap: 6px; }
+.filtro-cat .seg { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.filtro-cat .seg button { white-space: nowrap; flex: none; }
+.dif { font-weight: 700; white-space: nowrap; }
+.dif.up { color: var(--stamp); } .dif.down { color: var(--note); }
+.anios { display: grid; gap: 2px; }
+.arow { display: grid; grid-template-columns: 3.2em 1fr auto; gap: 10px; align-items: center; border: 0; background: none; padding: 6px 4px; border-radius: 8px; text-align: left; min-height: 48px; }
+.arow:hover { background: var(--note-soft); }
+.ay { font-weight: 800; }
+.abar { height: 14px; background: var(--note-soft); border-radius: 4px; overflow: hidden; }
+.abar i { display: block; height: 100%; background: var(--serie-a); border-radius: 0 4px 4px 0; }
+.abar i.parcial { background: repeating-linear-gradient(135deg, var(--serie-a) 0 6px, color-mix(in srgb, var(--serie-a) 55%, transparent) 6px 10px); }
+.av { text-align: right; font-weight: 700; display: grid; line-height: 1.15; min-width: 6.5em; }
+.av small { font-weight: 600; font-size: .76rem; color: var(--ink-2); }
+.cmp-sel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cmp-sel label { display: grid; gap: 4px; font-weight: 700; font-size: .9rem; }
+.cmp-sel label span { display: flex; align-items: center; gap: 6px; }
+.sw { display: inline-block; width: 14px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+.sw.a { background: var(--serie-a); height: 5px; } .sw.b { background: var(--serie-b); }
+.graf svg { width: 100%; height: auto; display: block; overflow: visible; }
+.graf .gl { stroke: var(--rule); stroke-width: 1; }
+.graf .ax { fill: var(--ink-2); font-size: 12px; font-family: var(--f-ui); }
+.graf .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.graf .ln.a { stroke: var(--serie-a); stroke-width: 3; } .graf .ln.b { stroke: var(--serie-b); stroke-dasharray: 7 5; }
+.graf .ln.otros { stroke: var(--serie-otros); stroke-width: 1.5; }
+.graf .pt { stroke: var(--sheet); stroke-width: 2; } .graf .pt.a { fill: var(--serie-a); } .graf .pt.b { fill: var(--serie-b); }
+.graf .lbl.bajo { transform: translateY(9px); } .graf .lbl.alto { transform: translateY(-9px); }
+.graf .lbl { font-size: 13px; font-weight: 800; font-family: var(--f-ui); fill: var(--ink); }
+.graf .cruz { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 2 3; opacity: 0; }
+.graf .hit { fill: transparent; cursor: pointer; }
+.lectura { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; min-height: 2.4em; padding: 8px 10px; background: var(--paper); border-radius: 10px; font-size: .95rem; }
+.tabla-wrap { overflow-x: auto; margin: 0 -14px; padding: 0 14px; }
+.tabla { border-collapse: collapse; width: 100%; font-size: .9rem; }
+.tabla th, .tabla td { padding: 9px 8px; border-bottom: 1px solid var(--rule); text-align: left; white-space: nowrap; }
+.tabla thead th { font-size: .8rem; color: var(--ink-2); font-weight: 700; border-bottom: 2px solid var(--ink); }
+.tabla td.num, .tabla th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tabla tbody tr[data-cc2] { cursor: pointer; } .tabla tbody tr[data-cc2]:hover, .tabla tr.sel { background: var(--note-soft); }
+.tabla tbody th { font-weight: 600; position: sticky; left: 0; background: var(--sheet); }
+.tabla tr.sel th { background: var(--note-soft); }
+.tabla tr.tot th, .tabla tr.tot td { font-weight: 800; border-top: 2px solid var(--ink); border-bottom: 0; }
 .periodo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .periodo label { display: grid; gap: 4px; font-weight: 700; font-size: .9rem; }
 .cifras { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -316,7 +361,7 @@ const mover = (ym, n) => { let [y, m] = ym.split('-').map(Number); m += n; while
 const nombreMes = ym => { const [y, m] = ym.split('-').map(Number); return MESES_L[m - 1][0].toUpperCase() + MESES_L[m - 1].slice(1) + ' ' + y; };
 const eur = (n, dec = 2) => Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec, useGrouping: true });
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const S = { busca: '', error: store.get('error', null), gastos: [], pend: [], cfg: store.get('cfg', null), demo: false, tab: 'apuntar', mes: mesHoy(), online: true, ultimaSync: null, nuevo: null };
+const S = { vista: 'anio', cmpCat: '', cmpA: '', cmpB: '', cmpMes: null, busca: '', error: store.get('error', null), gastos: [], pend: [], cfg: store.get('cfg', null), demo: false, tab: 'apuntar', mes: mesHoy(), online: true, ultimaSync: null, nuevo: null };
 S.xlDesde = 1; S.xlHasta = 12;
 const periodoTxt = (d, h) => d === 1 && h === 12 ? '' : d === h ? MESES_L[d - 1] : MESES_L[d - 1] + '-' + MESES_L[h - 1];
 const nombreXl = (y, d, h) => `Descargar Excel · ${periodoTxt(d, h) ? periodoTxt(d, h).replace('-', ' a ') : 'año entero'} ${y}`;
@@ -528,9 +573,9 @@ function render() {
 function irA(tab) { S.tab = tab; cerrarHoja(); render(); window.scrollTo(0, 0); }
 
 /* ---- libreta del mes (movimientos impresos) ---- */
-const fechaCorta = g => /^X/.test(g.id) ? MESES_C[+g.fecha.slice(5, 7) - 1] : g.fecha.slice(8, 10) + ' ' + MESES_C[+g.fecha.slice(5, 7) - 1];
-const filaMov = g => `<button type="button" class="mov ${g._local && S.pend.length ? 'pend' : ''} ${g.id === S.nuevo ? 'nuevo' : ''}" data-id="${esc(g.id)}">
-      <span class="d num">${fechaCorta(g)}</span>
+const fechaCorta = (g, conAnio) => (/^X/.test(g.id) ? MESES_C[+g.fecha.slice(5, 7) - 1] : g.fecha.slice(8, 10) + ' ' + MESES_C[+g.fecha.slice(5, 7) - 1]) + (conAnio ? ' ' + g.fecha.slice(2, 4) : '');
+const filaMov = (g, conAnio) => `<button type="button" class="mov ${g._local && S.pend.length ? 'pend' : ''} ${g.id === S.nuevo ? 'nuevo' : ''}" data-id="${esc(g.id)}">
+      <span class="d num">${fechaCorta(g, conAnio === true)}</span>
       <span class="c">${esc(CAT[g.categoria]?.n || g.categoria)}${g.nota ? `<small>${esc(g.nota)}</small>` : ''}</span>
       <span class="i num">${eur(g.importe)}</span><svg class="lapiz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg></button>`;
 function htmlLibreta(ym, max) {
@@ -591,7 +636,30 @@ function vLibreta() {
 }
 
 /* ---- El año ---- */
+const htmlBuscador = (y) => `<section class="buscar" role="search">
+      <label for="bQ" class="lab">Buscar en ${y === 'todos' ? 'todos los años' : y}</label>
+      <div class="bq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+        <input type="search" id="bQ" value="${esc(S.busca || '')}" placeholder="Concepto, nota o importe: comunidad, extra, 20…" autocomplete="off" enterkeyhint="search">
+        <button type="button" class="x" id="bX" aria-label="Borrar búsqueda" ${S.busca ? '' : 'hidden'}>×</button></div>
+      <div id="bRes" aria-live="polite"></div>
+    </section>`;
+function enlazarBuscador(y) {
+  const q = $('#bQ');
+  q.oninput = () => { S.busca = q.value; $('#bX').hidden = !q.value; pintarBusqueda(y); };
+  $('#bX').onclick = () => { S.busca = ''; q.value = ''; $('#bX').hidden = true; pintarBusqueda(y); q.focus(); };
+  pintarBusqueda(y);
+}
+const listaAnios = () => [...new Set(S.gastos.map(g => g.fecha.slice(0, 4)).concat([mesHoy().slice(0, 4)]))].sort();
+const segAnios = (sel) => `<div class="seg" role="group" aria-label="Año">${listaAnios().map(a => `<button type="button" data-y="${a}" class="${a === sel ? 'on' : ''}">${a}</button>`).join('')}<button type="button" data-y="todos" class="${sel === 'todos' ? 'on' : ''}">Todos</button></div>`;
+function enlazarAnios() {
+  $$('[data-y]').forEach(b => b.onclick = () => {
+    const a = b.dataset.y;
+    if (a === 'todos') { S.vista = 'todos'; return vAnio(); }
+    S.vista = 'anio'; S.mes = a === mesHoy().slice(0, 4) ? mesHoy() : a + '-12'; render();
+  });
+}
 function vAnio() {
+  if (S.vista === 'todos') return vTodos();
   const y = S.mes.slice(0, 4);
   const anios = [...new Set(S.gastos.map(g => g.fecha.slice(0, 4)).concat([mesHoy().slice(0, 4)]))].sort();
   const tm = Array.from({ length: 12 }, (_, i) => suma(delMes(`${y}-${pad(i + 1)}`)));
@@ -605,15 +673,8 @@ function vAnio() {
   const rmax = rank.length ? rank[0][1] : 1;
   const selM = +S.mes.slice(5) - 1;
   $('#app').innerHTML = `<div class="view">
-    <section class="buscar" role="search">
-      <label for="bQ" class="lab">Buscar en ${y}</label>
-      <div class="bq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
-        <input type="search" id="bQ" value="${esc(S.busca || '')}" placeholder="Concepto, nota o importe: comunidad, extra, 20…" autocomplete="off" enterkeyhint="search">
-        <button type="button" class="x" id="bX" aria-label="Borrar búsqueda" ${S.busca ? '' : 'hidden'}>×</button></div>
-      <div id="bRes" aria-live="polite"></div>
-    </section>
-    <div class="panel-head"><h2 style="margin:0">Año ${y}</h2>
-      <div class="seg" role="group" aria-label="Año">${anios.map(a => `<button type="button" data-y="${a}" class="${a === y ? 'on' : ''}">${a}</button>`).join('')}</div></div>
+    <div class="panel-head cab-anio"><h2 style="margin:0">Año ${y}</h2>${segAnios(y)}</div>
+    ${htmlBuscador(y)}
     <div class="cifras">
       <div class="cifra"><b class="num">${eur(tot)} €</b><span>Total del año</span></div>
       <div class="cifra"><b class="num">${eur(media)} €</b><span>Media al mes (${conGasto.length} ${conGasto.length === 1 ? 'mes' : 'meses'})</span></div>
@@ -641,13 +702,10 @@ function vAnio() {
       </section>
     </div>
   </div>`;
-  $$('[data-y]').forEach(b => b.onclick = () => { const a = b.dataset.y; S.mes = a === mesHoy().slice(0, 4) ? mesHoy() : a + '-12'; render(); });
+  enlazarAnios();
   $$('[data-m]').forEach(b => b.onclick = () => { S.mes = `${y}-${pad(+b.dataset.m + 1)}`; if (S.mes > mesHoy()) S.mes = mesHoy(); irA('libreta'); });
-  const q = $('#bQ');
-  q.oninput = () => { S.busca = q.value; $('#bX').hidden = !q.value; pintarBusqueda(y); };
-  $('#bX').onclick = () => { S.busca = ''; q.value = ''; $('#bX').hidden = true; pintarBusqueda(y); q.focus(); };
+  enlazarBuscador(y);
   $$('[data-bc]').forEach(b => { const ir = () => { S.busca = b.dataset.bc; vAnio(); window.scrollTo({ top: 0, behavior: 'smooth' }); }; b.onclick = ir; b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } }; });
-  pintarBusqueda(y);
   const fijar = (d, h) => { S.xlDesde = Math.min(d, h); S.xlHasta = Math.max(d, h); vAnio(); };
   $('#xlDesde').onchange = e => fijar(+e.target.value, S.xlHasta);
   $('#xlHasta').onchange = e => fijar(S.xlDesde, +e.target.value);
@@ -655,12 +713,145 @@ function vAnio() {
   $('#xlBtn').onclick = () => exportarExcel(y, S.xlDesde, S.xlHasta);
 }
 
+/* ---- todos los años: totales, evolución y comparación ---- */
+function vTodos() {
+  const anios = listaAnios().filter(a => S.gastos.some(g => g.fecha.startsWith(a + '-')));
+  const hoyY = mesHoy().slice(0, 4), hoyM = +mesHoy().slice(5);
+  const cat = S.cmpCat && CAT[S.cmpCat] ? S.cmpCat : '';
+  const base = cat ? S.gastos.filter(g => g.categoria === cat) : S.gastos;
+  const nomCat = cat ? CAT[cat].n : 'todos los gastos';
+  const deAnio = (a, hasta = 12) => base.filter(g => g.fecha.startsWith(a + '-') && +g.fecha.slice(5, 7) <= hasta);
+  const porMes = a => Array.from({ length: 12 }, (_, i) => suma(base.filter(g => g.fecha.startsWith(`${a}-${pad(i + 1)}`))));
+  const totA = a => suma(deAnio(a));
+  // años a comparar
+  if (!anios.includes(S.cmpA)) S.cmpA = anios[anios.length - 1];
+  if (!anios.includes(S.cmpB) || S.cmpB === S.cmpA) S.cmpB = anios.filter(a => a !== S.cmpA).slice(-1)[0] || '';
+  const A = S.cmpA, B = S.cmpB;
+  const total = suma(base);
+  const mesesCon = new Set(base.map(g => mesDe(g.fecha))).size;
+  const completos = anios.filter(a => a !== hoyY);
+  const mediaAnio = completos.length ? completos.reduce((x, a) => x + totA(a), 0) / completos.length : 0;
+  // año en curso: comparar con los mismos meses del año anterior
+  const prevY = String(+hoyY - 1);
+  const hayCurso = anios.includes(hoyY) && anios.includes(prevY);
+  const curso = hayCurso ? [suma(deAnio(hoyY, hoyM)), suma(deAnio(prevY, hoyM))] : null;
+  const pct = (a, b) => b ? Math.round((a - b) / b * 100) : null;
+  const flecha = (a, b) => { const p = pct(a, b); return p === null ? '' : `<span class="dif ${p > 0 ? 'up' : p < 0 ? 'down' : ''}">${p > 0 ? '▲' : p < 0 ? '▼' : '='} ${Math.abs(p)} %</span>`; };
+  const ymax = Math.max(...anios.map(totA), 1);
+  // tabla conceptos x años
+  const catsCon = CATS.filter(c => S.gastos.some(g => g.categoria === c.k));
+  const celda = (k, a) => suma(S.gastos.filter(g => g.categoria === k && g.fecha.startsWith(a + '-')));
+  $('#app').innerHTML = `<div class="view">
+    <div class="panel-head cab-anio"><h2 style="margin:0">Todos los años</h2>${segAnios('todos')}</div>
+    ${htmlBuscador('todos')}
+    ${anios.length < 2 ? `<p class="aviso-anios">Por ahora solo hay gastos de ${anios[0] || hoyY}. En cuanto metas otro año, aquí podrás compararlos mes a mes y concepto a concepto.</p>` : ''}
+    <section class="filtro-cat"><span class="lab">Ver</span>
+      <div class="seg" role="group" aria-label="Concepto">
+        <button type="button" data-cc2="" class="${cat ? '' : 'on'}">Todos los gastos</button>
+        ${catsCon.map(c => `<button type="button" data-cc2="${c.k}" class="${cat === c.k ? 'on' : ''}">${c.n}</button>`).join('')}
+      </div></section>
+    <div class="cifras">
+      <div class="cifra"><b class="num">${eur(total)} €</b><span>Total ${anios[0] || ''}${anios.length > 1 ? '–' + anios[anios.length - 1] : ''}</span></div>
+      <div class="cifra"><b class="num">${completos.length ? eur(mediaAnio) + ' €' : '—'}</b><span>Media por año${completos.length ? ` (${completos.length} ${completos.length === 1 ? 'año completo' : 'años completos'})` : ''}</span></div>
+      <div class="cifra"><b class="num">${mesesCon ? eur(total / mesesCon) + ' €' : '—'}</b><span>Media al mes (${mesesCon} meses)</span></div>
+      <div class="cifra"><b class="num">${curso ? eur(curso[0]) + ' €' : '—'}</b><span>${curso ? `${hoyY} hasta ${MESES_L[hoyM - 1]} ${flecha(curso[0], curso[1])}<br>${eur(curso[1])} € en ${prevY}` : 'Año en curso'}</span></div>
+    </div>
+
+    <section class="panel"><div class="panel-head"><h3>Año a año</h3><span class="small muted">${esc(nomCat)}</span></div>
+      <div class="anios">${anios.map((a, i) => { const v = totA(a); const ant = i ? totA(anios[i - 1]) : 0; const parcial = a === hoyY && hoyM < 12;
+        return `<button type="button" class="arow" data-ver="${a}" aria-label="${a}: ${eur(v)} euros. Ver ese año">
+          <span class="ay">${a}</span><span class="abar"><i style="width:${(v / ymax * 100).toFixed(1)}%" class="${parcial ? 'parcial' : ''}"></i></span>
+          <span class="av num">${eur(v)} €${parcial ? `<small>hasta ${MESES_C[hoyM - 1]}</small>` : i ? `<small>${flecha(v, ant)}</small>` : '<small>&nbsp;</small>'}</span></button>`; }).join('')}</div>
+      <p class="small muted" style="margin:0">${hayCurso ? `El año en curso aún no está completo: la flecha de arriba lo compara con los mismos meses de ${prevY}.` : ''} Toca un año para verlo.</p>
+    </section>
+
+    ${anios.length > 1 ? `<section class="panel"><div class="panel-head"><h3>Mes a mes</h3><span class="small muted">${esc(nomCat)}</span></div>
+      <div class="cmp-sel">
+        <label><span><i class="sw a"></i>Año</span><select id="cA">${anios.map(a => `<option ${a === A ? 'selected' : ''}>${a}</option>`).join('')}</select></label>
+        <label><span><i class="sw b"></i>Comparar con</span><select id="cB">${anios.filter(a => a !== A).map(a => `<option ${a === B ? 'selected' : ''}>${a}</option>`).join('')}</select></label>
+      </div>
+      <div id="graf" class="graf"></div>
+      <div id="lectura" class="lectura" aria-live="polite"></div>
+      <details><summary>Ver como tabla</summary><div class="tabla-wrap" id="tablaMeses"></div></details>
+    </section>` : ''}
+
+    <section class="panel"><div class="panel-head"><h3>Cada concepto por años</h3></div>
+      <p class="small muted" style="margin:0">Toca un concepto para ver su evolución arriba.</p>
+      <div class="tabla-wrap"><table class="tabla">
+        <thead><tr><th scope="col">Concepto</th>${anios.map(a => `<th scope="col" class="num">${a}${a === hoyY && hoyM < 12 ? '*' : ''}</th>`).join('')}${anios.length > 1 ? '<th scope="col">Cambio</th>' : ''}</tr></thead>
+        <tbody>${catsCon.map(c => { const vs = anios.map(a => celda(c.k, a));
+          const ult = anios[anios.length - 1], pen = anios[anios.length - 2];
+          const hasta = ult === hoyY ? hoyM : 12;
+          const cmp = pen ? [suma(S.gastos.filter(g => g.categoria === c.k && g.fecha.startsWith(ult + '-') && +g.fecha.slice(5, 7) <= hasta)), suma(S.gastos.filter(g => g.categoria === c.k && g.fecha.startsWith(pen + '-') && +g.fecha.slice(5, 7) <= hasta))] : null;
+          return `<tr class="${cat === c.k ? 'sel' : ''}" data-cc2="${c.k}" tabindex="0"><th scope="row">${c.n}</th>${vs.map(v => `<td class="num">${v ? eur(v, 0) : '—'}</td>`).join('')}${cmp ? `<td>${flecha(cmp[0], cmp[1]) || '—'}</td>` : ''}</tr>`; }).join('')}
+          <tr class="tot"><th scope="row">Total</th>${anios.map(a => `<td class="num">${eur(suma(S.gastos.filter(g => g.fecha.startsWith(a + '-'))), 0)}</td>`).join('')}${anios.length > 1 ? '<td></td>' : ''}</tr></tbody>
+      </table></div>
+      ${anios.includes(hoyY) && hoyM < 12 && anios.length > 1 ? `<p class="small muted" style="margin:0">* ${hoyY} hasta ${MESES_L[hoyM - 1]}. «Cambio» compara ${anios[anios.length - 1]} con ${anios[anios.length - 2]} en los mismos meses. Euros sin decimales.</p>` : '<p class="small muted" style="margin:0">Euros sin decimales.</p>'}
+    </section>
+  </div>`;
+  enlazarAnios(); enlazarBuscador('todos');
+  $$('[data-cc2]').forEach(b => { const ir = () => { S.cmpCat = b.dataset.cc2; vTodos(); }; b.onclick = ir; b.onkeydown = e => { if (e.key === 'Enter') ir(); }; });
+  $$('[data-ver]').forEach(b => b.onclick = () => { S.vista = 'anio'; const a = b.dataset.ver; S.mes = a === hoyY ? mesHoy() : a + '-12'; render(); window.scrollTo(0, 0); });
+  if (anios.length > 1) {
+    $('#cA').onchange = e => { S.cmpA = e.target.value; vTodos(); };
+    $('#cB').onchange = e => { S.cmpB = e.target.value; vTodos(); };
+    grafMeses(anios, porMes, A, B, hoyY, hoyM);
+  }
+}
+let grafRes;
+window.addEventListener('resize', () => { clearTimeout(grafRes); grafRes = setTimeout(() => { if (S.tab === 'anio' && S.vista === 'todos' && $('#graf')) vTodos(); }, 250); });
+function grafMeses(anios, porMes, A, B, hoyY, hoyM) {
+  // dibujado a tamaño real del hueco, para que los textos no encojan en el móvil
+  const W = Math.max(300, Math.round($('#graf').clientWidth || 640)), H = W < 500 ? 220 : 260, L = 44, R = 42, T = 14, Bm = 26;
+  // meses sin ningún apunte = sin datos (no se dibujan como 0)
+  const datos = Object.fromEntries(anios.map(a => [a, porMes(a).map((v, i) => (a === hoyY && i + 1 > hoyM) || !v ? null : v)]));
+  const max = Math.max(1, ...anios.flatMap(a => datos[a].filter(v => v !== null)));
+  const paso = max > 1500 ? 500 : max > 600 ? 200 : max > 300 ? 100 : max > 120 ? 50 : 20;
+  const top = Math.ceil(max / paso) * paso;
+  const x = i => L + i * (W - L - R) / 11, yv = v => T + (H - T - Bm) * (1 - v / top);
+  const linea = a => { let d = '', antes = false; datos[a].forEach((v, i) => { if (v === null) { antes = false; return; } d += (antes ? 'L' : 'M') + x(i).toFixed(1) + ' ' + yv(v).toFixed(1); antes = true; }); return d; };
+  const grid = []; for (let v = 0; v <= top; v += paso) grid.push(v);
+  const ultimo = a => { let i = 11; while (i > 0 && datos[a][i] === null) i--; return i; };
+  // si las dos etiquetas finales se pisan, se separan
+  const yA = datos[A][ultimo(A)], yB = datos[B][ultimo(B)];
+  const etiqueta = (a, cls) => { const i = ultimo(a); if (datos[a][i] === null) return ''; return `<text x="${x(i) + 8}" y="${yv(datos[a][i]) + 4}" class="lbl ${cls}">${a}</text>`; };
+  let sel = S.cmpMes ?? ultimo(A);
+  const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gasto de cada mes: ${A} comparado con ${B}">
+    ${grid.map(v => `<line x1="${L}" x2="${W - R}" y1="${yv(v)}" y2="${yv(v)}" class="gl"/><text x="${L - 8}" y="${yv(v) + 4}" class="ax" text-anchor="end">${eur(v, 0)}</text>`).join('')}
+    ${MESES_C.map((m, i) => `<text x="${x(i)}" y="${H - 8}" class="ax" text-anchor="middle">${m[0].toUpperCase()}</text>`).join('')}
+    ${anios.filter(a => a !== A && a !== B).map(a => `<path d="${linea(a)}" class="ln otros"/>`).join('')}
+    <line id="cruz" y1="${T}" y2="${H - Bm}" class="cruz"/>
+    <path d="${linea(B)}" class="ln b"/><path d="${linea(A)}" class="ln a"/>
+    ${datos[B].map((v, i) => v === null ? '' : `<circle cx="${x(i)}" cy="${yv(v)}" r="4" class="pt b"/>`).join('')}
+    ${datos[A].map((v, i) => v === null ? '' : `<circle cx="${x(i)}" cy="${yv(v)}" r="4.5" class="pt a"/>`).join('')}
+    ${etiqueta(B, 'b' + (ultimo(A) === ultimo(B) && yA !== null && yB !== null && Math.abs(yv(yA) - yv(yB)) < 14 ? (yv(yB) > yv(yA) ? ' bajo' : ' alto') : ''))}${etiqueta(A, 'a')}
+    ${MESES_C.map((m, i) => `<rect x="${x(i) - (W - L - R) / 22}" y="0" width="${(W - L - R) / 11}" height="${H}" class="hit" data-i="${i}"/>`).join('')}
+  </svg>`;
+  $('#graf').innerHTML = svg;
+  const leer = i => {
+    S.cmpMes = i; const cr = $('#cruz'); cr.setAttribute('x1', x(i)); cr.setAttribute('x2', x(i)); cr.style.opacity = 1;
+    const va = datos[A][i], vb = datos[B][i];
+    const d = va !== null && vb ? Math.round((va - vb) / vb * 100) : null;
+    $('#lectura').innerHTML = `<b>${MESES_L[i][0].toUpperCase() + MESES_L[i].slice(1)}</b>
+      <span><i class="sw a"></i>${A}: <b class="num">${va === null ? 'aún no' : eur(va) + ' €'}</b></span>
+      <span><i class="sw b"></i>${B}: <b class="num">${vb === null ? '—' : eur(vb) + ' €'}</b></span>
+      ${d !== null && isFinite(d) ? `<span class="dif ${d > 0 ? 'up' : d < 0 ? 'down' : ''}">${d > 0 ? '▲' : d < 0 ? '▼' : '='} ${Math.abs(d)} %</span>` : ''}`;
+  };
+  $$('#graf .hit').forEach(r => { r.onmouseenter = () => leer(+r.dataset.i); r.onclick = () => leer(+r.dataset.i); });
+  leer(sel);
+  const tA = datos[A], tB = datos[B];
+  $('#tablaMeses').innerHTML = `<table class="tabla"><thead><tr><th scope="col">Mes</th><th scope="col" class="num">${A}</th><th scope="col" class="num">${B}</th><th scope="col">Cambio</th></tr></thead><tbody>
+    ${MESES_L.map((m, i) => { const a = tA[i], b = tB[i]; const p = a !== null && b ? Math.round((a - b) / b * 100) : null;
+      return `<tr><th scope="row">${m}</th><td class="num">${a === null ? '—' : eur(a)}</td><td class="num">${b === null ? '—' : eur(b)}</td><td>${p === null ? '—' : `<span class="dif ${p > 0 ? 'up' : p < 0 ? 'down' : ''}">${p > 0 ? '▲' : p < 0 ? '▼' : '='} ${Math.abs(p)} %</span>`}</td></tr>`; }).join('')}
+    <tr class="tot"><th scope="row">Total</th><td class="num">${eur(suma(tA.filter(v => v !== null).map(v => ({ importe: v }))))}</td><td class="num">${eur(suma(tB.filter(v => v !== null).map(v => ({ importe: v }))))}</td><td></td></tr></tbody></table>`;
+}
+
 /* ---- buscador ---- */
 const normal = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 function buscar(y, texto) {
   const pal = normal(texto).split(/\s+/).filter(Boolean);
   if (!pal.length) return null;
-  return S.gastos.filter(g => g.fecha.startsWith(y + '-')).filter(g => {
+  return S.gastos.filter(g => y === 'todos' || g.fecha.startsWith(y + '-')).filter(g => {
     const cat = CAT[g.categoria] || {};
     const hay = normal([cat.n, g.categoria, g.nota, eur(g.importe), String(g.importe), MESES_L[+g.fecha.slice(5, 7) - 1]].join(' '));
     return pal.every(p => hay.includes(p.replace('.', ',')) || hay.includes(p));
@@ -670,13 +861,15 @@ function pintarBusqueda(y) {
   const el = $('#bRes'); if (!el) return;
   const r = buscar(y, S.busca);
   if (!r) { el.innerHTML = ''; return; }
-  if (!r.length) { el.innerHTML = `<p class="muted" style="margin:8px 0 0">Nada en ${y} con «${esc(S.busca)}». Prueba con otra palabra o cambia de año.</p>`; return; }
+  const enTxt = y === 'todos' ? 'todos los años' : y;
+  if (!r.length) { el.innerHTML = `<p class="muted" style="margin:8px 0 0">Nada en ${enTxt} con «${esc(S.busca)}». Prueba con otra palabra${y === 'todos' ? '' : ' o busca en todos los años'}.</p>`; return; }
   const tot = suma(r);
   const meses = new Set(r.map(g => mesDe(g.fecha))).size;
   el.innerHTML = `<section class="libreta" style="margin-top:10px">
-    <div class="lib-head"><h3>«${esc(S.busca)}» en ${y}</h3><span class="small muted">${r.length} ${r.length === 1 ? 'apunte' : 'apuntes'} · ${meses} ${meses === 1 ? 'mes' : 'meses'}</span></div>
-    ${r.map(filaMov).join('')}
+    <div class="lib-head"><h3>«${esc(S.busca)}» en ${enTxt}</h3><span class="small muted">${r.length} ${r.length === 1 ? 'apunte' : 'apuntes'} · ${meses} ${meses === 1 ? 'mes' : 'meses'}</span></div>
+    ${r.map(g => filaMov(g, y === 'todos')).join('')}
     <div class="lib-foot"><span>Total</span><span class="num">${eur(tot)} €</span></div>
+    ${y === 'todos' && new Set(r.map(g => g.fecha.slice(0, 4))).size > 1 ? `<div class="lib-hint" style="border:0">${[...new Set(r.map(g => g.fecha.slice(0, 4)))].sort().map(a => `${a}: <b class="num">${eur(suma(r.filter(g => g.fecha.startsWith(a))))} €</b>`).join(' · ')}</div>` : ''}
     ${meses > 1 ? `<div class="lib-hint" style="border:0">De media, ${eur(tot / meses)} € en los meses que aparece.</div>` : ''}
   </section>`;
   el.querySelectorAll('.mov[data-id]').forEach(b => b.onclick = () => { const g = S.gastos.find(x => x.id === b.dataset.id); if (g) abrirHoja({ editar: g }); });
